@@ -17,8 +17,7 @@ def Load_Data(df):
     gb.configure_pagination(paginationAutoPageSize=True)  # Add pagination
     gb.configure_side_bar()  # Add a sidebar
     # Enable multi-row selection
-    gb.configure_selection('multiple', use_checkbox=True,
-                           groupSelectsChildren="Group checkbox select children")
+    gb.configure_selection('multiple', use_checkbox=True,groupSelectsChildren="Group checkbox select children")
     gridOptions = gb.build()
 
     grid_response = AgGrid(
