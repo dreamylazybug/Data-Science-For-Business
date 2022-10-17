@@ -7,23 +7,9 @@
 
 
 import seaborn as sns
-import numpy as np
 import matplotlib.pylab as plt
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix
-#from sklearn.metrics import plot_confusion_matrix
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.model_selection import train_test_split
-from sklearn import tree
-import xgboost as xgb
-import math
-#from apyori import apriori
 import streamlit as st
-from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
 # ---------------------------------------------------------------------------
 # Browsing & loading data from # Youtube Link: https://www.youtube.com/watch?v=PgLjwl6Br0k
