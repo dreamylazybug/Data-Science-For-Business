@@ -23,9 +23,9 @@ def cstplt(df, plttype):
         # Select Target Variable & Dimensions
         choices = df3.columns.values.tolist()
         optiony = st.selectbox(
-            'Select the y-variable for scatter plot', choices)
+            'Select the y-variable for scatter plot to run Linear Regression model line', choices)
         optionx = st.selectbox(
-            'Select the x-variables for scatter plot', choices)
+            'Select the x-variables for scatter plot to run Linear Regression model line', choices)
         if st.button('Start plotting'): 
             st.write('In the simplest invocation, both functions draw a scatterplot of two variables, x and y, and then fit the regression model y ~ x and plot the resulting regression line and a 95% confidence interval for that regression')
             fig = plt.figure(figsize=(20, 10))
@@ -67,10 +67,10 @@ def cstplt(df, plttype):
          # Select Target Variable & Dimensions
          choices = df3.columns.values.tolist()
          optiony3 = st.selectbox(
-             'Select the y-variable for scatter plot', choices)
+             'Select the y-variable for box plot', choices)
          st.write('Please select a categorical variable for x')
          optionx3 = st.selectbox(
-             'Select the x-variables for scatter plot', choices)
+             'Select the x-variables for box plot', choices)
          h1 = st.selectbox(
              'Select the hue/color variation for scatter plot', choices)
          if st.button('Start plotting'):
