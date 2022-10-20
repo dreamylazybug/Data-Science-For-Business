@@ -118,7 +118,7 @@ def xgboost(predictors, targets, testsz, lr, maxdepth):
 
        # Saving files to Root folder
         plt.savefig(res_path_1)
-        st.image(res_path_1, caption='Corretion based confusion Matrix')
+        st.image(res_path_1, caption='Correlation based confusion Matrix')
         plt.savefig("xgboost.png")
 
         # Print predicted values
@@ -131,7 +131,8 @@ def xgboost(predictors, targets, testsz, lr, maxdepth):
 
         # Concatenating test X & Y
         drest = pd.concat([dxtest, dytest], axis=1, sort=False)
-        drest.to_excel("BoostingPredictions.xlsx", sheet_name='Predictions')
+        st.download_button('BoostingPredictions', drest)
+    
 
         # Print Parameters
         data_dmatrix = xgb.DMatrix(data=X, label=y)
@@ -140,13 +141,11 @@ def xgboost(predictors, targets, testsz, lr, maxdepth):
         ax = xgb.plot_importance(xg_reg)
         fig4 = ax.figure
         fig4.set_size_inches(10, 10)
-        res_path_2 = 'confusion matrix.png'
+        res_path_2 = 'Parameters.png'
 
        # Saving files to Root folder
         plt.savefig(res_path_2)
-        st.image(res_path_2, caption='Correlation based confusion Matrix')
-        plt.savefig("XG_Boostparams.png")
-
+        st.image(res_path_2, caption='Parameters Feature Importance')
         st.success(
             'Success", "Your predictions & parameters are saved in .csv file named Boostingpredictions & params.png', icon="✅")
     except ValueError:
