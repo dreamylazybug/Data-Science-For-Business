@@ -8,7 +8,7 @@
 
 import streamlit as st
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
-import io
+#import io
 
 
 def Load_Data(df):
@@ -32,10 +32,10 @@ def Load_Data(df):
         reload_data=True
     )
    
-    buffer = io.StringIO()
-    df.info(buf=buffer)
-    s = buffer.getvalue() 
-    st.text(s)
+    #buffer = io.StringIO()
+    #df.info(buf=buffer)
+    #s = buffer.getvalue() 
+    #st.text(s)
         
     st.write('DESCRIPTIVE STATISTICS')
     dt = df.describe()
