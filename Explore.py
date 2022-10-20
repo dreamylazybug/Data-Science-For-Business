@@ -8,7 +8,7 @@
 
 import streamlit as st
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
-
+import io
 
 
 def Load_Data(df):
@@ -17,7 +17,7 @@ def Load_Data(df):
     gb.configure_pagination(paginationAutoPageSize=True)  # Add pagination
     gb.configure_side_bar()  # Add a sidebar
     # Enable multi-row selection
-    gb.configure_selection('multiple', use_checkbox=True,groupSelectsChildren="Group checkbox select children")
+    gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children")
     gridOptions = gb.build()
 
     grid_response = AgGrid(
@@ -32,8 +32,11 @@ def Load_Data(df):
         reload_data=True
     )
    
-
-
-
-
-  
+    buffer = io.StringIO()
+    df.info(buf=buffer)
+    s = buffer.getvalue() 
+    st.text(s)
+        
+    st.write('DESCRIPTIVE STATISTICS')
+    dt = df.describe()
+    st.dataframe(dt)
