@@ -30,6 +30,7 @@ def cstplt(df, plttype):
             st.write('In the simplest invocation, both functions draw a scatterplot of two variables, x and y, and then fit the regression model y ~ x and plot the resulting regression line and a 95% confidence interval for that regression')
             fig = plt.figure(figsize=(20, 10))
             sns.regplot(data=df3, x= optionx, y= optiony)
+            plt.legend (loc = 'upper right')
             #plt.title('Scatter Plot y vs x', fontsize=25)  # title with fontsize 20
             st.pyplot(fig)
             
@@ -43,6 +44,7 @@ def cstplt(df, plttype):
             st.write('A histogram is a bar plot where the axis representing the data variable is divided into a set of discrete bins and the count of observations falling within each bin is shown using the height of the corresponding bar')
             fig1 = plt.figure(figsize=(20, 10))
             sns.displot(data=df3, x= optionx1)
+            plt.legend (loc = 'upper right')
             plt.savefig('Dist.png')
             st.image('Dist.png',caption = 'Distribution') 
            
@@ -60,6 +62,7 @@ def cstplt(df, plttype):
              st.write('The scatter plot is a mainstay of statistical visualization. It depicts the joint distribution of two variables using a cloud of points, where each point represents an observation in the dataset. This depiction allows the eye to infer a substantial amount of information about whether there is any meaningful relationship between them')
              fig2 = plt.figure(figsize=(20, 10))
              sns.relplot(data=df3, x= optionx2, y= optiony2, hue = h)
+             plt.legend (loc = 'upper right')
              plt.savefig('scatter.png')
              st.image('scatter.png',caption = 'Scatter Plot y vs x') 
          
@@ -77,6 +80,7 @@ def cstplt(df, plttype):
              st.write('This kind of plot shows the three quartile values of the distribution along with extreme values. The “whiskers” extend to points that lie within 1.5 IQRs of the lower and upper quartile, and then observations that fall outside this range are displayed independently.')
              fig3 = plt.figure(figsize=(20, 10))
              sns.catplot(data=df3, x= optionx3, y= optiony3, hue = h1, kind = 'box')
+             plt.legend (loc = 'upper right')
              plt.savefig('box.png')
              st.image('box.png',caption = 'Box Plot y vs x') 
              st.write('How to read the box plot ?')
