@@ -87,8 +87,8 @@ if uploaded_file is not None:
     if st.sidebar.button('Logistic Regression'):
         Regression.regres(predictors, targets, testsz)
         
-    if st.sidebar.button('Random Forest'):
-        Forest.forest(predictors, targets, testsz, lr, maxdepth)
+   # if st.sidebar.button('Random Forest'):
+   #     Forest.forest(predictors, targets, testsz, lr, maxdepth)
         
     if st.sidebar.button('Gradient Boosting - XGBOOST'):
         XGBoost.xgboost(predictors, targets, testsz, lr, maxdepth)
