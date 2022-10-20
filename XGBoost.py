@@ -131,9 +131,19 @@ def xgboost(predictors, targets, testsz, lr, maxdepth):
 
         # Concatenating test X & Y
         drest = pd.concat([dxtest, dytest], axis=1, sort=False)
-        st.download_button('BoostingPredictions', drest)
-    
-
+        
+        # Downloading results
+        def convert_df(df):
+            return df.to_csv(index=False).encode('utf-8')        
+        dcsv = convert_df(df)        
+        st.download_button(
+           "Press to Download",
+           fcsv,
+           "XGBoost.csv",
+           "text/csv",
+           key='download-csv'
+            )        
+        
         # Print Parameters
         data_dmatrix = xgb.DMatrix(data=X, label=y)
         xg_reg = xgb.train(
