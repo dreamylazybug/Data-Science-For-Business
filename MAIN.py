@@ -16,19 +16,24 @@ import Regression
 import XGBoost
 import Cluster
 import Custplots
+import Forest
 
-st.title('DataScience for your Business')
+st.title('Analyti-Cult')
 
 st.write('Step 1. Browse and Load data  \n Step 2. Optional - Clean Data  \n Step 3. Explore and Visualize  \n  Step 4. Click to deploy Models - Regression, XGBoost, Clustering ')
 st.write("For free datasets, check out [link](https://www.kaggle.com/datasets)")
+st.write('Default data set is HR Attrition from Kaggle, please select your file for analyzing your data')
 
+df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
 
 # Read input Data
 uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
+else :
+    df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
     
-
+if uploaded_file is not None:
     # Run Load & Prep Data for analysis
     
     if st.sidebar.button('Explore Data'):
@@ -56,19 +61,19 @@ if uploaded_file is not None:
     
     
     # Selecting Features
-    if uploaded_file is not None:
-        df3 = Clean.Clean(df)
     
-        # Select Target Variable & Dimensions
-        choices = df3.columns.values.tolist()
-        optiony = st.sidebar.selectbox(
-            'Select the y-variable or the target for regression?', choices)
-        optionx = st.sidebar.multiselect(
-            'Select the x-variables or the predictors for regression', choices)
-        
-        # Storing them as predictors & targets data frames
-        predictors = df3[optionx]
-        targets = df3[optiony]
+    df3 = Clean.Clean(df)
+    
+    # Select Target Variable & Dimensions
+    choices = df3.columns.values.tolist()
+    optiony = st.sidebar.selectbox(
+        'Select the y-variable or the target for regression?', choices)
+    optionx = st.sidebar.multiselect(
+        'Select the x-variables or the predictors for regression', choices)
+    
+    # Storing them as predictors & targets data frames
+    predictors = df3[optionx]
+    targets = df3[optiony]
     
     with st.sidebar:
     
@@ -79,28 +84,26 @@ if uploaded_file is not None:
             maxdepth = st.number_input('Maximum Depth', min_value=3, max_value=10, value=5, step=1)
             submit_button = st.form_submit_button(label='Submit parameters')
     
-    if st.sidebar.button('Regress Data'):
+    if st.sidebar.button('Logistic Regression'):
         Regression.regres(predictors, targets, testsz)
+        
+    if st.sidebar.button('Random Forest'):
+        Forest.forest(predictors, targets, testsz, lr, maxdepth)
         
     if st.sidebar.button('Gradient Boosting - XGBOOST'):
         XGBoost.xgboost(predictors, targets, testsz, lr, maxdepth)
-        
-    if st.sidebar.button('Random Forest'):
-        Forest.forest(predictors, targets, testsz, lr, maxdepth)   
         
     st.sidebar.write('Data Clustering')
     
     
     
-    if uploaded_file is not None:
+    # Pick the parameters to cluster 
+    choicesclst = df3.columns.values.tolist()
+    optionclst = st.sidebar.multiselect(
+        'Select the columns to cluster data points', choicesclst)
     
-        # Pick the parameters to cluster 
-        choicesclst = df3.columns.values.tolist()
-        optionclst = st.sidebar.multiselect(
-            'Select the columns to cluster data points', choicesclst)
-    
-        # Data for Clustering
-        dclst = df3[optionclst]
+    # Data for Clustering
+    dclst = df3[optionclst]
     
     if st.sidebar.button('k-Means'):
         Cluster.cluster(dclst)
