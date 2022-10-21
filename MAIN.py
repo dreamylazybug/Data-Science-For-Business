@@ -30,7 +30,7 @@ uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 else :
-    df = pd.read_csv('./HR%20Employee%20Attrition.csv')
+    df = pd.read_csv('./HR Employee Attrition.csv')
     
 if uploaded_file is not None:
     # Run Load & Prep Data for analysis
