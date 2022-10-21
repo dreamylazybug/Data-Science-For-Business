@@ -24,7 +24,6 @@ st.write('Step 1. Browse and Load data  \n Step 2. Optional - Clean Data  \n Ste
 st.write("For free datasets, check out [link](https://www.kaggle.com/datasets)")
 st.write('Default data set is HR Attrition from Kaggle, please select your file for analyzing your data')
 
-df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
 
 # Read input Data
 uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
