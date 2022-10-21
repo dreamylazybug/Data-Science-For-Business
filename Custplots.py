@@ -81,6 +81,6 @@ def cstplt(df, plttype):
              st.image('box.png',caption = 'Box Plot y vs x') 
              st.write('How to read the box plot ?')
              from PIL import Image
-             image = Image.open('/Users/aaru/Documents/Product Management/Analytics_Data_Science/samplebox.png')
+             image = Image.open('./samplebox.png')
              st.image(image)
              
