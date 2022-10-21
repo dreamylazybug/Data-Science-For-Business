@@ -31,7 +31,7 @@ uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 else :
-    df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
+    df = pd.read_csv('/https://github.com/dreamylazybug/Data-Science-For-Business/blob/Experiment/HR%20Employee%20Attrition.csv')
     
 if uploaded_file is not None:
     # Run Load & Prep Data for analysis
