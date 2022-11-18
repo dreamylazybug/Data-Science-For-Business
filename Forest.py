@@ -105,14 +105,14 @@ def forest(predictors, targets, testsz, lr, maxdepth):
       
        # Concatenating test X & Y
        drest = pd.concat([dxtest, dytest], axis=1, sort=False)
-       drest.to_excel("Random Forest Predictions.xlsx", sheet_name='Predictions')
-       st.write('Your predictions were saved as Random Forest Predictions.xlsx')
-
+       
+       st.success(
+           'Success!', icon="✅")
     
    except ValueError:
        st.error(
            'This is an error, Please make sure you have col named Target that needs prediction', icon="🚨")
-   return None
+   return drest
    return None
        
       

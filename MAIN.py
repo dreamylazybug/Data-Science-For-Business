@@ -17,6 +17,9 @@ import XGBoost
 import Cluster
 import Custplots
 import Forest
+import xlsxwriter
+import io
+
 
 st.title('Analyti-Cult')
 
@@ -30,8 +33,8 @@ df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Scienc
 uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-#else :
-#    df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
+else :
+    df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
     
 if uploaded_file is not None:
     # Run Load & Prep Data for analysis
@@ -85,13 +88,29 @@ if uploaded_file is not None:
             submit_button = st.form_submit_button(label='Submit parameters')
     
     if st.sidebar.button('Logistic Regression'):
-        Regression.regres(predictors, targets, testsz)
+        df_xlsx = Regression.regres(predictors, targets, testsz)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_xlsx.to_excel(writer, sheet_name='Sheet1')
+            writer.save()
+            st.download_button(label="Download Excel worksheets", data=buffer, file_name="regression.xlsx",mime="application/vnd.ms-excel")
         
-   # if st.sidebar.button('Random Forest'):
-   #     Forest.forest(predictors, targets, testsz, lr, maxdepth)
+    if st.sidebar.button('Random Forest'):
+        dforest = Forest.forest(predictors, targets, testsz, lr, maxdepth)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            dforest.to_excel(writer, sheet_name='Sheet1')
+            writer.save()
+            st.download_button(label="Download Excel worksheets", data=buffer, file_name="RandomForest.xlsx",mime="application/vnd.ms-excel")
         
     if st.sidebar.button('Gradient Boosting - XGBOOST'):
         XGBoost.xgboost(predictors, targets, testsz, lr, maxdepth)
+        dboost = Forest.forest(predictors, targets, testsz, lr, maxdepth)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            dboost.to_excel(writer, sheet_name='Sheet1')
+            writer.save()
+            st.download_button(label="Download Excel worksheets", data=buffer, file_name="XGBoost.xlsx",mime="application/vnd.ms-excel")
         
     st.sidebar.write('Data Clustering')
     

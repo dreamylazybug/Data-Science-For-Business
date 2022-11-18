@@ -12,6 +12,8 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import streamlit as st
+
+
 # ---------------------------------------------------------------------------
 # Browsing & loading data from # Youtube Link: https://www.youtube.com/watch?v=PgLjwl6Br0k
 # Changes made by lmullapu to the orientation of the frames to make them relative
@@ -72,15 +74,13 @@ def regres(predictors, targets, testsz):
         dpred.head()
         drest = pd.concat([dxtest, dytest], axis=1, sort=False)
         drest = pd.concat([drest, dpred], axis=1, sort=False)
-        drest.to_excel("Regresseddata.xlsx", sheet_name='Predictions')
-
         st.success(
-            'Regressed data was stored in Regresseddata.xlsx file', icon="✅")
+            'Success!', icon="✅")
 
     except ValueError:
         st.error(
             'This is an error, Please make sure you have col named Target that needs prediction', icon="🚨")
-    return None
+    return drest
     return None
 
 
