@@ -9,3 +9,5 @@ streamlit==1.13.0
 xgboost==1.6.2
 streamlit-aggrid==0.2.3
 AgGrid==0.2.3
+xlsxwriter==3.0.3
+io==0.2.6
