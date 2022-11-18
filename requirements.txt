@@ -11,3 +11,4 @@ streamlit-aggrid==0.2.3
 AgGrid==0.2.3
 xlsxwriter==3.0.3
 io==0.2.6
+openpyxl==3.0.10
