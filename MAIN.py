@@ -65,7 +65,7 @@ if uploaded_file is not None:
     
     # Selecting Features
     
-    df3 = Clean.Clean(df)
+    df3 = Prep_Data.Prepare_Data(df)
     
     # Select Target Variable & Dimensions
     choices = df3.columns.values.tolist()
