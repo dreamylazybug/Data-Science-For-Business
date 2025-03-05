@@ -1,9 +1,9 @@
-numpy>=1.23.0
+numpy
+scipy
 matplotlib>=3.5.2
 pandas==1.4.4
 Pillow==9.2.0
 scikit_learn==1.1.2
-scipy==1.7.3
 seaborn==0.11.2
 streamlit==1.13.0
 xgboost==1.6.2
