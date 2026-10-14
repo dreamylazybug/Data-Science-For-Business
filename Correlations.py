@@ -1,47 +1,24 @@
-#######################################################################################
-# DATA SCIENCE MODELS POWERED BY VISUALIZATION FROM TKINTER PYTHON
-# AUTHOR: LAXMI MULLAPUDI (lmullapu@cisco.com)
-# LAST UPDATED: 10/29/2020
-# CREATED:10/1/2020
-########################################################################################
-
-
-import seaborn as sns
-import matplotlib.pylab as plt
-
+"""Compact, interactive numeric correlation heatmap."""
+import plotly.express as px
 import streamlit as st
-
-
-
-
-
-# --------------
+from Custplots import polish
 
 def corell(df):
-
-    # Preparing data - specific to corellogram
-    # Separating numeric & Categorical columns
-    st.empty()
-    dtf = df._get_numeric_data()
-    dtf = dtf.fillna(0)  # Filling NAs
-    dtg = df.select_dtypes(include=['object'])
-
-    # Plotting Corellogram
-    corre = dtf.corr()
-    f = plt.figure(figsize=(16, 14))
-    a = f.add_subplot(111)
-    colormap = plt.cm.viridis
-    a = sns.heatmap(corre, vmax=1.0, center=0,
-                    square=True, linewidths=2, cmap=colormap, linecolor='white', annot=False)
-    plt.title('Correlogram', fontsize=25)  # title with fontsize 20
-
-    results_path = 'results.png'
-
-    # Saving files to Root folder
-    plt.savefig(results_path)
-    st.image(results_path, caption='Correlations between your data columns')
-    # Success Message
-    st.success('Your Correlogram is stored in CorrelHeatmap.png file', icon="✅")
-
-
-
+    numeric = df.select_dtypes(include='number')
+    if numeric.shape[1] < 2:
+        st.warning('At least two numeric columns are needed.'); return
+    st.subheader('Feature correlations')
+    if numeric.shape[1] > 25:
+        chosen = st.multiselect('Columns to compare (up to 25)', numeric.columns.tolist(),
+                                default=numeric.columns[:12].tolist(), max_selections=25)
+        numeric = numeric[chosen]
+        if numeric.shape[1] < 2:
+            st.info('Select at least two columns.'); return
+    corr = numeric.corr()
+    fig = px.imshow(corr, zmin=-1, zmax=1, color_continuous_scale='RdBu_r',
+                    aspect='auto', labels=dict(color='Correlation'))
+    fig.update_traces(hovertemplate='%{x} vs %{y}: %{z:.2f}<extra></extra>')
+    fig = polish(fig, max(350, min(680, 28 * len(corr) + 120)))
+    fig.update_layout(coloraxis_colorbar=dict(len=.7, thickness=12))
+    fig.update_xaxes(tickangle=-35, side='bottom')
+    st.plotly_chart(fig, use_container_width=True)

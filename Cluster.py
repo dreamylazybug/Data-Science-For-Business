@@ -1,109 +1,34 @@
-#######################################################################################
-# DATA SCIENCE MODELS POWERED BY VISUALIZATION FROM TKINTER PYTHON
-# AUTHOR: LAXMI MULLAPUDI (lmullapu@cisco.com)
-# LAST UPDATED: 10/29/2020
-# CREATED:10/1/2020
-########################################################################################
-
-
-import seaborn as sns
-import matplotlib.pylab as plt
+"""K-means clustering with compact interactive elbow chart."""
 import pandas as pd
+import plotly.express as px
 import streamlit as st
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from Custplots import polish, COLORS
 
-# ---------------------------------------------------------------------------
-# Browsing & loading data from # Youtube Link: https://www.youtube.com/watch?v=PgLjwl6Br0k
-# Changes made by lmullapu to the orientation of the frames to make them relative
-# ----------------------------------------------------------------------------
-
-
-
-
-def cluster(dclstmer):
-    try:
-        st.write('k-means clustering is a method of vector quantization, originally from signal processing, that aims to partition n observations into k clusters in which each observation belongs to the cluster with the nearest mean (cluster centers or cluster centroid), serving as a prototype of the cluster. This results in a partitioning of the data space into Voronoi cells. k-means clustering minimizes within-cluster variances (squared Euclidean distances)')
-        # defining the kmeans function with initialization as k-means++
-        from sklearn.cluster import KMeans
-        kmeans = KMeans(n_clusters=12, init='k-means++')
-
-        # fitting the k means algorithm on scaled data
-        kmeans.fit(dclstmer)
-
-        # fitting multiple k-means algorithms and storing the values in an empty list
-        SSE = []
-        for cluster in range(1, 20):
-            kmeans = KMeans(n_clusters=cluster, init='k-means++')
-            kmeans.fit(dclstmer)
-            SSE.append(kmeans.inertia_)
-
-        # converting the results into a dataframe and plotting them
-        frame = pd.DataFrame({'Cluster': range(1, 20), 'SSE': SSE})
-
-        # Normalizing frame
-        from sklearn import preprocessing
-
-        x = frame.values  # returns a numpy array
-        min_max_scaler = preprocessing.MinMaxScaler()
-        x_scaled = min_max_scaler.fit_transform(x)
-        framnorm = pd.DataFrame(x_scaled)
-
-        # picking the cluster
-        slope = []
-        val = []
-        m = len(framnorm)-1
-        n = len(framnorm.columns)
-        for i in range(0, m):
-            y1 = framnorm.iloc[i, 1]
-            y2 = framnorm.iloc[i+1, 1]
-            x1 = framnorm.iloc[i, 0]
-            x2 = framnorm.iloc[i+1, 0]
-            s = (y2-y1)/(x2-x1)
-            s = abs(s)
-            s = round(s, 0)
-            if s == 0:
-                break
-            slope.append(s)
-        os = i+1
-
-        # Plotting data for optimal # of clusters
-        f = plt.figure(figsize=(5, 5))
-        a = f.add_subplot(111)
-        sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-        a = plt.plot(frame['Cluster'], frame['SSE'], marker='o')
-        a = plt.axvline(x=os, color='black', linestyle='-')
-        plt.xlabel('Number of clusters')
-        plt.ylabel('Inertia')
-        plt.title('Inertia with # of Clusters (blue) & Optimal # of Clusters (black))',
-                  fontsize=12)  # title with fontsize 20
-
-        res_path_3 = 'Optimal_Clusters.png'
-
-       # Saving files to Root folder
-        plt.savefig(res_path_3)
-        st.image(res_path_3, caption='Optimal Number of Clusters')
-        plt.savefig("Optimal_Clusters.png")
-
-        st.success(
-            'The optimal number of clusters image has been saved as Optimal_Clusters.png', icon="✅")
-
-        # k means using optimal # of clusters clusters and k-means++ initialization
-        kmeans = KMeans(n_clusters=os, init='k-means++')
-        kmeans.fit(dclstmer)
-        pred = kmeans.predict(dclstmer)
-
-        # Look at value count
-        framenew = pd.DataFrame(dclstmer)
-        framenew['cluster'] = pred
-        framenew['cluster'].value_counts()
-        clstchar = framenew.groupby(['cluster']).mean() 
-        st.write('Summarizing characteristics of clusters')
-        st.table(clstchar)
-        framenew.to_csv('cluster_Data.csv')
-        st.success(
-            'Success, Your clusters are saved in .csv file named cluster_Data', icon="✅")
-
-    except ValueError:
-        st.error('Try reselecting colymns', icon="🚨")
-    return None
-    return None
-
+def cluster(df):
+    if df.empty or df.shape[1] == 0:
+        st.warning('Select numeric columns to cluster.'); return None
+    if len(df) < 3:
+        st.warning('At least three rows are required.'); return None
+    data = df.select_dtypes(include='number')
+    if data.shape[1] != df.shape[1]:
+        st.warning('Clustering requires numeric columns.'); return None
+    if data.notna().sum().eq(0).any():
+        st.warning('Remove columns containing only missing values.'); return None
+    matrix = StandardScaler().fit_transform(SimpleImputer(strategy='median').fit_transform(data))
+    max_k = min(10, len(df)-1)
+    ks = list(range(1, max_k + 1))
+    inertia = [KMeans(n_clusters=k, n_init=10, random_state=42).fit(matrix).inertia_ for k in ks]
+    st.subheader('Choosing the number of clusters')
+    fig = px.line(x=ks, y=inertia, markers=True, labels={'x':'Number of clusters','y':'Inertia'},
+                  color_discrete_sequence=COLORS)
+    fig.update_traces(line_width=3, marker_size=8)
+    st.plotly_chart(polish(fig, 320), use_container_width=True)
+    k = st.slider('Number of clusters', 2, max_k, min(3, max_k))
+    labels = KMeans(n_clusters=k, n_init=10, random_state=42).fit_predict(matrix)
+    result = df.copy()
+    result['cluster'] = labels
+    st.dataframe(result.groupby('cluster').mean(numeric_only=True).round(2), use_container_width=True)
+    return result
