@@ -27,14 +27,15 @@ st.write('Step 1. Browse and Load data  \n Step 2. Optional - Clean Data  \n Ste
 st.write("For free datasets, check out [link](https://www.kaggle.com/datasets)")
 st.write('Default data set is HR Attrition from Kaggle, please select your file for analyzing your data')
 
-df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
+csv_path = Path(__file__).parent / 'HR Employee Attrition.csv'
+df = pd.read_csv(csv_path)
 
 # Read input Data
 uploaded_file = st.sidebar.file_uploader("Choose the CSV data file")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 else :
-    df = pd.read_csv('/Users/aaru/Documents/Product Management/Analytics_Data_Science/HR Employee Attrition.csv')
+    df = pd.read_csv(csv_path)
     
 if uploaded_file is not None:
     # Run Load & Prep Data for analysis
