@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, balanced_accuracy_score, precision_recall_fscore_support,
-                             confusion_matrix, mean_absolute_error, mean_squared_error, r2_score)
+                             confusion_matrix, classification_report, mean_absolute_error, mean_squared_error, r2_score)
 
 
 def suggest_task(y):
@@ -66,7 +66,7 @@ def coerce_features(df, features):
 
 
 def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
-                   max_depth=5, learning_rate=0.1):
+                   max_depth=5, learning_rate=0.1, class_balance=False):
     from sklearn.linear_model import LogisticRegression, Ridge
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
     from sklearn.pipeline import Pipeline
@@ -103,9 +103,9 @@ def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
         if y_train.nunique() < len(encoder.classes_):
             raise ValueError('Some classes are missing from training data. Use a larger dataset or different test fraction.')
         if algorithm == 'Logistic Regression':
-            estimator = LogisticRegression(max_iter=2000, random_state=42)
+            estimator = LogisticRegression(max_iter=2000, random_state=42, class_weight='balanced' if class_balance else None)
         elif algorithm == 'Random Forest':
-            estimator = RandomForestClassifier(n_estimators=200, max_depth=max_depth, random_state=42, n_jobs=-1)
+            estimator = RandomForestClassifier(n_estimators=200, max_depth=max_depth, random_state=42, n_jobs=-1, class_weight='balanced' if class_balance else None)
         elif algorithm == 'XGBoost':
             cfg = {'objective': 'binary:logistic'} if len(encoder.classes_) == 2 else {'objective': 'multi:softprob', 'num_class':len(encoder.classes_)}
             estimator = XGBClassifier(n_estimators=200, max_depth=max_depth, learning_rate=learning_rate,
@@ -124,7 +124,12 @@ def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
             raise ValueError('Unknown regression algorithm.')
     model = Pipeline([('preprocess', preprocessor_for(X_train, scale=algorithm in ('Logistic Regression','Ridge Regression'))),
                       ('estimator', estimator)])
-    model.fit(X_train, y_train)
+    # XGBoost does not accept class_weight; use balanced sample weights instead.
+    fit_kwargs = {}
+    if task == 'Classification' and algorithm == 'XGBoost' and class_balance:
+        from sklearn.utils.class_weight import compute_sample_weight
+        fit_kwargs['estimator__sample_weight'] = compute_sample_weight('balanced', y_train)
+    model.fit(X_train, y_train, **fit_kwargs)
     predicted = model.predict(X_test)
     output = pd.DataFrame({'Row ID': ['ROW-' + str(i).zfill(6) for i in range(1, len(X_test)+1)]}, index=X_test.index)
     if task == 'Classification':
@@ -140,6 +145,11 @@ def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
                    'Precision': precision, 'Recall': recall, 'F1': f1}
         matrix = confusion_matrix(y_test, predicted, labels=np.arange(len(encoder.classes_)))
         labels = [str(c) for c in encoder.classes_]
+        report = pd.DataFrame(classification_report(y_test, predicted, labels=np.arange(len(labels)),
+                        target_names=labels, output_dict=True, zero_division=0)).T.loc[labels]
+        # The positive class is the second class in LabelEncoder's ordering.
+        probabilities = probs[:, 1] if hasattr(model, 'predict_proba') and len(labels) == 2 else None
+        binary_y = y_test.to_numpy() if len(labels) == 2 else None
     else:
         output['Actual'] = y_test.to_numpy()
         output['Predicted'] = predicted
@@ -148,6 +158,9 @@ def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
                    'RMSE': np.sqrt(mean_squared_error(y_test, predicted)),
                    'R²': r2_score(y_test, predicted) if len(y_test) >= 2 else float('nan')}
         matrix, labels = None, None
+        report, probabilities, binary_y = None, None, None
     return {'predictions': output.reset_index(drop=True), 'metrics': metrics,
             'matrix': matrix, 'labels': labels, 'task': task, 'algorithm': algorithm,
-            'train_size': len(X_train), 'test_size': len(X_test)}
+            'train_size': len(X_train), 'test_size': len(X_test),
+            'class_report': report, 'binary_probabilities': probabilities, 'binary_actual': binary_y,
+            'class_balance': class_balance}

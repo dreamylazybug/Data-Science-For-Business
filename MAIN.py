@@ -90,20 +90,22 @@ with model_tab:
         algorithm = st.selectbox('Algorithm', ['Logistic Regression', 'Random Forest', 'XGBoost'])
     else:
         algorithm = st.selectbox('Algorithm', ['Ridge Regression', 'Random Forest', 'XGBoost'])
-    a, b, c = st.columns(3)
-    test_fraction = a.slider('Test fraction', 0.15, 0.4, 0.25, 0.05)
-    depth = b.slider('Maximum tree depth', 2, 12, 5)
-    learning_rate = c.slider('XGBoost learning rate', 0.01, 0.3, 0.1, 0.01)
+    a, b = st.columns(2)
+    test_fraction = a.slider('Test fraction', 0.15, 0.4, 0.20, 0.05)
+    depth = b.slider('Maximum tree depth', 2, 12, 5) if algorithm in ('Random Forest', 'XGBoost') else 5
+    learning_rate = st.slider('XGBoost learning rate', 0.01, 0.3, 0.1, 0.01) if algorithm == 'XGBoost' else 0.1
+    class_balance = st.checkbox('Balance class weights during training', value=False,
+        help='Useful when target classes are uneven. May improve minority-class recall at the expense of precision.') if task == 'Classification' else False
     if st.button('Train and evaluate', type='primary'):
         try:
             with st.spinner('Training model and evaluating holdout predictions...'):
                 st.session_state['model_result'] = fit_supervised(df, target, selected, task, algorithm,
-                                        test_fraction=test_fraction, max_depth=depth, learning_rate=learning_rate)
-            st.session_state['model_config'] = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate)
+                                        test_fraction=test_fraction, max_depth=depth, learning_rate=learning_rate, class_balance=class_balance)
+            st.session_state['model_config'] = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance)
         except (ValueError, TypeError, OverflowError) as exc:
             st.session_state.pop('model_result', None)
             st.error(f'Model could not run: {exc}')
-    current_config = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate)
+    current_config = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance)
     if st.session_state.get('model_config') == current_config and 'model_result' in st.session_state:
         render(st.session_state['model_result'])
     elif 'model_result' in st.session_state:
