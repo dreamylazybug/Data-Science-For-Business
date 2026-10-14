@@ -1,90 +1,44 @@
-#######################################################################################
-# DATA SCIENCE MODELS POWERED BY VISUALIZATION FROM TKINTER PYTHON
-# AUTHOR: LAXMI MULLAPUDI (lmullapu@cisco.com)
-# LAST UPDATED: 10/29/2020
-# CREATED:10/1/2020
-########################################################################################
-
-
+"""Interactive charts using the original (unencoded) dataset."""
+from pathlib import Path
+import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.pylab as plt
-import pandas as pd
 import streamlit as st
-import  Semiclean
-
-
-
-
-# --------------
 
 def cstplt(df, plttype):
-    df3 = Semiclean.Clean(df)
-    if plttype == 'Linear Regression' :
-        # Select Target Variable & Dimensions
-        choices = df3.columns.values.tolist()
-        optiony = st.selectbox(
-            'Select the y-variable for scatter plot to run Linear Regression model line', choices)
-        optionx = st.selectbox(
-            'Select the x-variables for scatter plot to run Linear Regression model line', choices)
-        if st.button('Start plotting'): 
-            st.write('In the simplest invocation, both functions draw a scatterplot of two variables, x and y, and then fit the regression model y ~ x and plot the resulting regression line and a 95% confidence interval for that regression')
-            fig = plt.figure(figsize=(20, 10))
-            sns.regplot(data=df3, x= optionx, y= optiony)
-            plt.legend (loc = 'upper right')
-            #plt.title('Scatter Plot y vs x', fontsize=25)  # title with fontsize 20
-            st.pyplot(fig)
-            
-    
-    if plttype == 'Distribution' :
-        # Select Target Variable & Dimensions
-        choices = df3.columns.values.tolist()
-        optionx1 = st.selectbox(
-            'Select the variable for plotting distribution', choices)
-        if st.button('Start plotting'): 
-            st.write('A histogram is a bar plot where the axis representing the data variable is divided into a set of discrete bins and the count of observations falling within each bin is shown using the height of the corresponding bar')
-            fig1 = plt.figure(figsize=(20, 10))
-            sns.displot(data=df3, x= optionx1)
-            plt.legend (loc = 'upper right')
-            plt.savefig('Dist.png')
-            st.image('Dist.png',caption = 'Distribution') 
-           
-
-    if plttype == 'Scatter' :
-         # Select Target Variable & Dimensions
-         choices = df3.columns.values.tolist()
-         optiony2 = st.selectbox(
-             'Select the y-variable for scatter plot', choices)
-         optionx2 = st.selectbox(
-             'Select the x-variables for scatter plot', choices)
-         h = st.selectbox(
-             'Select the hue/color variation for scatter plot', choices)
-         if st.button('Start plotting'): 
-             st.write('The scatter plot is a mainstay of statistical visualization. It depicts the joint distribution of two variables using a cloud of points, where each point represents an observation in the dataset. This depiction allows the eye to infer a substantial amount of information about whether there is any meaningful relationship between them')
-             fig2 = plt.figure(figsize=(20, 10))
-             sns.relplot(data=df3, x= optionx2, y= optiony2, hue = h)
-             plt.legend (loc = 'upper right')
-             plt.savefig('scatter.png')
-             st.image('scatter.png',caption = 'Scatter Plot y vs x') 
-         
-    if plttype == 'Box Plot for Categorical Data' :
-         # Select Target Variable & Dimensions
-         choices = df3.columns.values.tolist()
-         optiony3 = st.selectbox(
-             'Select the y-variable for box plot', choices)
-         st.write('Please select a categorical variable for x')
-         optionx3 = st.selectbox(
-             'Select the x-variables for box plot', choices)
-         h1 = st.selectbox(
-             'Select the hue/color variation for scatter plot', choices)
-         if st.button('Start plotting'):
-             st.write('This kind of plot shows the three quartile values of the distribution along with extreme values. The “whiskers” extend to points that lie within 1.5 IQRs of the lower and upper quartile, and then observations that fall outside this range are displayed independently.')
-             fig3 = plt.figure(figsize=(20, 10))
-             sns.catplot(data=df3, x= optionx3, y= optiony3, hue = h1, kind = 'box')
-             plt.legend (loc = 'upper right')
-             plt.savefig('box.png')
-             st.image('box.png',caption = 'Box Plot y vs x') 
-             st.write('How to read the box plot ?')
-             from PIL import Image
-             image = Image.open('/Users/aaru/Documents/Product Management/Analytics_Data_Science/samplebox.png')
-             st.image(image)
-             
+    if df.empty or df.columns.empty:
+        st.warning('No data available to plot.')
+        return
+    columns = df.columns.tolist()
+    numeric = df.select_dtypes(include='number').columns.tolist()
+    if plttype == 'Distribution':
+        x = st.selectbox('Variable', columns, key='dist_x')
+        if st.button('Start plotting', key='dist_go'):
+            fig, ax = plt.subplots(figsize=(9, 5))
+            sns.histplot(data=df, x=x, ax=ax)
+            ax.tick_params(axis='x', rotation=30)
+            st.pyplot(fig); plt.close(fig)
+    elif plttype in ('Scatter', 'Linear Regression'):
+        if len(numeric) < 2:
+            st.warning('Choose a dataset with at least two numeric columns.'); return
+        x = st.selectbox('X variable', numeric, key='scatter_x')
+        y = st.selectbox('Y variable', numeric, index=min(1,len(numeric)-1), key='scatter_y')
+        hue = st.selectbox('Color grouping (optional)', ['None'] + columns, key='scatter_hue') if plttype == 'Scatter' else 'None'
+        if st.button('Start plotting', key='scatter_go'):
+            fig, ax = plt.subplots(figsize=(9, 5))
+            if plttype == 'Linear Regression':
+                sns.regplot(data=df, x=x, y=y, ax=ax, scatter_kws={'alpha':0.5})
+            else:
+                sns.scatterplot(data=df, x=x, y=y, hue=None if hue=='None' else hue, ax=ax)
+            st.pyplot(fig); plt.close(fig)
+    elif plttype == 'Box Plot for Categorical Data':
+        if not numeric:
+            st.warning('A numeric Y column is required.'); return
+        y = st.selectbox('Numeric Y variable', numeric, key='box_y')
+        x = st.selectbox('Category X variable', columns, key='box_x')
+        if st.button('Start plotting', key='box_go'):
+            fig, ax = plt.subplots(figsize=(10, 5))
+            sns.boxplot(data=df, x=x, y=y, ax=ax)
+            ax.tick_params(axis='x', rotation=45)
+            st.pyplot(fig); plt.close(fig)
+            sample = Path(__file__).parent / 'samplebox.png'
+            if sample.exists(): st.image(str(sample), caption='How to read a box plot')

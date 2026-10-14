@@ -1,47 +1,15 @@
-#######################################################################################
-# DATA SCIENCE MODELS POWERED BY VISUALIZATION FROM TKINTER PYTHON
-# AUTHOR: LAXMI MULLAPUDI (lmullapu@cisco.com)
-# LAST UPDATED: 10/29/2020
-# CREATED:10/1/2020
-########################################################################################
-
-
+"""Numeric correlation heatmap."""
+import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.pylab as plt
-
 import streamlit as st
 
-
-
-
-
-# --------------
-
 def corell(df):
-
-    # Preparing data - specific to corellogram
-    # Separating numeric & Categorical columns
-    st.empty()
-    dtf = df._get_numeric_data()
-    dtf = dtf.fillna(0)  # Filling NAs
-    dtg = df.select_dtypes(include=['object'])
-
-    # Plotting Corellogram
-    corre = dtf.corr()
-    f = plt.figure(figsize=(16, 14))
-    a = f.add_subplot(111)
-    colormap = plt.cm.viridis
-    a = sns.heatmap(corre, vmax=1.0, center=0,
-                    square=True, linewidths=2, cmap=colormap, linecolor='white', annot=False)
-    plt.title('Correlogram', fontsize=25)  # title with fontsize 20
-
-    results_path = 'results.png'
-
-    # Saving files to Root folder
-    plt.savefig(results_path)
-    st.image(results_path, caption='Correlations between your data columns')
-    # Success Message
-    st.success('Your Correlogram is stored in CorrelHeatmap.png file', icon="✅")
-
-
-
+    numeric = df.select_dtypes(include='number')
+    if numeric.shape[1] < 2:
+        st.warning('Select data with at least two numeric columns.')
+        return
+    fig, ax = plt.subplots(figsize=(min(16, max(7, numeric.shape[1])), 7))
+    sns.heatmap(numeric.corr(), cmap='viridis', center=0, ax=ax)
+    ax.set_title('Numeric feature correlations')
+    st.pyplot(fig)
+    plt.close(fig)
