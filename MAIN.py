@@ -1,6 +1,7 @@
 """Analyti-Cult: general-purpose exploratory analysis and prediction studio."""
 from pathlib import Path
 import pandas as pd
+import numpy as np
 import streamlit as st
 import Explore, Prep_Data, Correlations, Cluster, Custplots
 from ModelUtils import suggest_task, fit_supervised
@@ -52,16 +53,82 @@ else:
         st.error(f'The demonstration CSV could not be read: {exc}')
         st.stop()
 
-st.caption(f'Loaded: **{dataset_name}**')
+# Keep a cleaned working copy only for the current dataset.
+source_key = (dataset_name, len(df), tuple(df.columns), int(df.isna().sum().sum()))
+if st.session_state.get('clean_source_key') != source_key:
+    st.session_state['clean_source_key'] = source_key
+    st.session_state.pop('cleaned_dataset', None)
+    st.session_state.pop('model_result', None)
+    st.session_state.pop('model_config', None)
+
+st.sidebar.divider()
+use_cleaned = st.sidebar.checkbox('Use cleaned data in analysis',
+    value=False, disabled='cleaned_dataset' not in st.session_state,
+    help='Applies the cleaned copy to Explore, Visualize, Prediction Studio and Clustering.')
+raw_df = df
+if use_cleaned and 'cleaned_dataset' in st.session_state:
+    df = st.session_state['cleaned_dataset'].copy()
+
+st.caption(f'Loaded: **{dataset_name}**' + (' · cleaned copy active' if use_cleaned else ' · original data active'))
 col1, col2, col3 = st.columns(3)
 col1.metric('Rows', f'{len(df):,}')
 col2.metric('Columns', f'{len(df.columns):,}')
 col3.metric('Missing cells', f'{int(df.isna().sum().sum()):,}')
 
-explore_tab, prepare_tab, charts_tab, model_tab, cluster_tab = st.tabs([
-    'Explore', 'Prepare', 'Visualize', 'Prediction Studio', 'Clustering'])
+explore_tab, clean_tab, prepare_tab, charts_tab, model_tab, cluster_tab = st.tabs([
+    'Explore', 'Clean Data', 'Prepare', 'Visualize', 'Prediction Studio', 'Clustering'])
 with explore_tab:
     Explore.Load_Data(df)
+with clean_tab:
+    st.subheader('Clean Data')
+    st.caption('Create a cleaned copy of the current dataset. The original is never overwritten.')
+    st.write(f'Original: **{len(raw_df):,} rows**, **{raw_df.shape[1]:,} columns**, '
+             f'**{int(raw_df.isna().sum().sum()):,} missing cells**, '
+             f'**{int(raw_df.duplicated().sum()):,} duplicate rows**.')
+    with st.form('cleaning_options'):
+        drop_duplicates = st.checkbox('Remove duplicate rows', value=True)
+        missing_method = st.selectbox('Handle missing values',
+            ['Keep missing values', 'Drop rows containing missing values',
+             'Fill numeric with median; categorical with mode',
+             'Fill numeric with mean; categorical with mode'])
+        drop_empty_cols = st.checkbox('Remove entirely empty columns', value=True)
+        submitted = st.form_submit_button('Create cleaned copy', type='primary')
+    if submitted:
+        cleaned = raw_df.copy()
+        if drop_empty_cols:
+            cleaned = cleaned.dropna(axis=1, how='all')
+        if drop_duplicates:
+            cleaned = cleaned.drop_duplicates()
+        if missing_method == 'Drop rows containing missing values':
+            cleaned = cleaned.dropna()
+        elif missing_method.startswith('Fill numeric'):
+            for col in cleaned.columns:
+                if not cleaned[col].isna().any():
+                    continue
+                if pd.api.types.is_numeric_dtype(cleaned[col]):
+                    nonnull = cleaned[col].dropna()
+                    if not nonnull.empty:
+                        value = nonnull.mean() if 'mean' in missing_method else nonnull.median()
+                        cleaned[col] = cleaned[col].fillna(value)
+                else:
+                    modes = cleaned[col].mode(dropna=True)
+                    if not modes.empty:
+                        cleaned[col] = cleaned[col].fillna(modes.iloc[0])
+        if cleaned.empty or cleaned.shape[1] == 0:
+            st.error('Cleaning produced an empty dataset. Choose less restrictive options.')
+        else:
+            st.session_state['cleaned_dataset'] = cleaned
+            st.success('Cleaned copy created. Enable “Use cleaned data in analysis” in the sidebar to analyze it.')
+    if 'cleaned_dataset' in st.session_state:
+        cleaned = st.session_state['cleaned_dataset']
+        c1, c2, c3 = st.columns(3)
+        c1.metric('Cleaned rows', f'{len(cleaned):,}')
+        c2.metric('Cleaned columns', f'{cleaned.shape[1]:,}')
+        c3.metric('Remaining missing cells', f'{int(cleaned.isna().sum().sum()):,}')
+        st.dataframe(cleaned.head(50), use_container_width=True)
+        st.download_button('Download cleaned CSV', cleaned.to_csv(index=False).encode('utf-8'),
+                           file_name='cleaned_data.csv', mime='text/csv')
+
 with prepare_tab:
     st.caption('This optional export is for exploration. Models preprocess raw predictors separately after train/test splitting.')
     if st.button('Prepare dataset for download'):
@@ -101,11 +168,11 @@ with model_tab:
             with st.spinner('Training model and evaluating holdout predictions...'):
                 st.session_state['model_result'] = fit_supervised(df, target, selected, task, algorithm,
                                         test_fraction=test_fraction, max_depth=depth, learning_rate=learning_rate, class_balance=class_balance)
-            st.session_state['model_config'] = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance)
+            st.session_state['model_config'] = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance, use_cleaned)
         except (ValueError, TypeError, OverflowError) as exc:
             st.session_state.pop('model_result', None)
             st.error(f'Model could not run: {exc}')
-    current_config = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance)
+    current_config = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate, class_balance, use_cleaned)
     if st.session_state.get('model_config') == current_config and 'model_result' in st.session_state:
         render(st.session_state['model_result'])
     elif 'model_result' in st.session_state:
