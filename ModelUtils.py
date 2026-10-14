@@ -1,52 +1,153 @@
-"""Shared leakage-safe model preprocessing and results."""
+"""Dataset-agnostic preprocessing, task inference and model evaluation."""
+import numpy as np
 import pandas as pd
-import streamlit as st
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
+from sklearn.metrics import (accuracy_score, balanced_accuracy_score, precision_recall_fscore_support,
+                             confusion_matrix, mean_absolute_error, mean_squared_error, r2_score)
 
-def prepare_split(predictors, targets, testsz, scale=False):
-    if predictors.empty or not len(predictors.columns):
-        raise ValueError('Choose at least one predictor column.')
-    if targets.isna().any():
-        raise ValueError('Target has missing values; clean or exclude those rows first.')
-    y_encoder = LabelEncoder()
-    y = pd.Series(y_encoder.fit_transform(targets.astype(str)), index=targets.index, name=targets.name or 'Target')
-    if y.nunique() < 2:
-        raise ValueError('Target needs at least two classes.')
-    if len(y) < 5:
-        raise ValueError('At least five rows are required.')
-    counts = y.value_counts()
-    stratify = y if counts.min() >= 2 and int(len(y)*testsz) >= y.nunique() and (len(y)-int(len(y)*testsz)) >= y.nunique() else None
-    X_train, X_test, y_train, y_test = train_test_split(predictors.copy(), y, test_size=testsz, random_state=42, stratify=stratify)
-    numeric = predictors.select_dtypes(include='number').columns.tolist()
-    categorical = [c for c in predictors if c not in numeric]
-    transformers = []
+
+def suggest_task(y):
+    """Heuristic only; users can always override."""
+    values = y.dropna()
+    if values.empty:
+        return 'Classification'
+    if not pd.api.types.is_numeric_dtype(values):
+        return 'Classification'
+    unique = values.nunique()
+    if unique <= 10 and unique / len(values) <= 0.1:
+        return 'Classification'
+    return 'Regression'
+
+
+def validate_columns(df, target, features):
+    if not features:
+        raise ValueError('Select at least one predictor column.')
+    if target in features:
+        raise ValueError('The target cannot also be a predictor.')
+    if not df.columns.is_unique:
+        raise ValueError('Duplicate column names are not supported.')
+    if df[target].dropna().empty:
+        raise ValueError('Target contains no observed values.')
+    if len(df.dropna(subset=[target])) < 8:
+        raise ValueError('At least 8 rows with non-missing target values are required.')
+
+
+def preprocessor_for(X, scale=False):
+    X = X.copy()
+    numeric = X.select_dtypes(include='number').columns.tolist()
+    other = [col for col in X.columns if col not in numeric]
+    parts = []
     if numeric:
         steps = [('impute', SimpleImputer(strategy='median', keep_empty_features=True))]
-        if scale: steps.append(('scale', StandardScaler()))
-        transformers.append(('numeric', Pipeline(steps), numeric))
-    if categorical:
-        transformers.append(('categorical', Pipeline([
-            ('impute', SimpleImputer(strategy='constant', fill_value='(missing)')),
-            ('encode', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
-        ]), categorical))
-    preprocessor = ColumnTransformer(transformers, remainder='drop')
-    return X_train, X_test, y_train, y_test, y_encoder, preprocessor
+        if scale:
+            steps.append(('scale', StandardScaler()))
+        parts.append(('numeric', Pipeline(steps), numeric))
+    if other:
+        parts.append(('categorical', Pipeline([
+            ('impute', SimpleImputer(strategy='constant', fill_value='(missing)', keep_empty_features=True)),
+            ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+        ]), other))
+    return ColumnTransformer(parts, remainder='drop')
 
-def show_results(model, X_train, X_test, y_train, y_test, y_encoder):
-    predictions = model.predict(X_test)
-    st.write(f'Train accuracy: **{accuracy_score(y_train, model.predict(X_train)):.1%}**')
-    st.write(f'Test accuracy: **{accuracy_score(y_test, predictions):.1%}**')
-    st.text(classification_report(y_test, predictions, labels=list(range(len(y_encoder.classes_))), target_names=[str(x) for x in y_encoder.classes_], zero_division=0))
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ConfusionMatrixDisplay.from_predictions(y_test, predictions, ax=ax)
-    st.pyplot(fig); plt.close(fig)
-    result = X_test.copy()
-    result['Actual Target'] = y_encoder.inverse_transform(y_test.to_numpy())
-    result['Target Predicted'] = y_encoder.inverse_transform(predictions)
-    return result
+
+def coerce_features(df, features):
+    X = df[features].copy()
+    for col in X:
+        if not pd.api.types.is_numeric_dtype(X[col]):
+            X[col] = X[col].astype('object')
+            X[col] = X[col].where(X[col].notna(), '(missing)').astype(str)
+        else:
+            X[col] = pd.to_numeric(X[col], errors='coerce').replace([np.inf, -np.inf], np.nan)
+    return X
+
+
+def fit_supervised(df, target, features, task, algorithm, test_fraction=0.25,
+                   max_depth=5, learning_rate=0.1):
+    from sklearn.linear_model import LogisticRegression, Ridge
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.pipeline import Pipeline
+    from xgboost import XGBClassifier, XGBRegressor
+
+    validate_columns(df, target, features)
+    valid = df.dropna(subset=[target]).copy()
+    X = coerce_features(valid, features)
+    if X.isna().all(axis=None):
+        raise ValueError('No usable predictor values were found.')
+    y_raw = valid[target]
+    encoder = None
+    if task == 'Classification':
+        encoder = LabelEncoder()
+        y = pd.Series(encoder.fit_transform(y_raw.astype(str)), index=valid.index)
+        n_classes = len(encoder.classes_)
+        if n_classes < 2:
+            raise ValueError('Classification requires at least two target classes.')
+        if n_classes > min(50, len(y)//3):
+            raise ValueError('Too many target classes for reliable classification. Select a more suitable target or use regression.')
+        counts = y.value_counts()
+        n_test = int(np.ceil(len(y) * test_fraction))
+        stratify = y if counts.min() >= 2 and n_test >= n_classes and (len(y)-n_test) >= n_classes else None
+    else:
+        y = pd.to_numeric(y_raw, errors='coerce')
+        keep = y.notna() & np.isfinite(y)
+        X, y = X.loc[keep], y.loc[keep]
+        if len(y) < 8:
+            raise ValueError('Regression needs at least 8 rows with numeric target values.')
+        stratify = None
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_fraction, random_state=42, stratify=stratify)
+    if task == 'Classification':
+        if y_train.nunique() < len(encoder.classes_):
+            raise ValueError('Some classes are missing from training data. Use a larger dataset or different test fraction.')
+        if algorithm == 'Logistic Regression':
+            estimator = LogisticRegression(max_iter=2000, random_state=42)
+        elif algorithm == 'Random Forest':
+            estimator = RandomForestClassifier(n_estimators=200, max_depth=max_depth, random_state=42, n_jobs=-1)
+        elif algorithm == 'XGBoost':
+            cfg = {'objective': 'binary:logistic'} if len(encoder.classes_) == 2 else {'objective': 'multi:softprob', 'num_class':len(encoder.classes_)}
+            estimator = XGBClassifier(n_estimators=200, max_depth=max_depth, learning_rate=learning_rate,
+                                      random_state=42, n_jobs=2, tree_method='hist', **cfg)
+        else:
+            raise ValueError('Unknown classification algorithm.')
+    else:
+        if algorithm == 'Ridge Regression':
+            estimator = Ridge(alpha=1.0)
+        elif algorithm == 'Random Forest':
+            estimator = RandomForestRegressor(n_estimators=200, max_depth=max_depth, random_state=42, n_jobs=-1)
+        elif algorithm == 'XGBoost':
+            estimator = XGBRegressor(n_estimators=200, max_depth=max_depth, learning_rate=learning_rate,
+                                     random_state=42, n_jobs=2, tree_method='hist')
+        else:
+            raise ValueError('Unknown regression algorithm.')
+    model = Pipeline([('preprocess', preprocessor_for(X_train, scale=algorithm in ('Logistic Regression','Ridge Regression'))),
+                      ('estimator', estimator)])
+    model.fit(X_train, y_train)
+    predicted = model.predict(X_test)
+    output = pd.DataFrame({'Row ID': ['ROW-' + str(i).zfill(6) for i in range(1, len(X_test)+1)]}, index=X_test.index)
+    if task == 'Classification':
+        output['Actual'] = encoder.inverse_transform(y_test.to_numpy().astype(int))
+        output['Predicted'] = encoder.inverse_transform(predicted.astype(int))
+        if hasattr(model, 'predict_proba'):
+            probs = model.predict_proba(X_test)
+            output['Prediction confidence'] = probs.max(axis=1)
+            if probs.shape[1] == 2:
+                output['Positive class probability'] = probs[:, 1]
+        precision, recall, f1, _ = precision_recall_fscore_support(y_test, predicted, average='weighted', zero_division=0)
+        metrics = {'Accuracy': accuracy_score(y_test, predicted), 'Balanced accuracy': balanced_accuracy_score(y_test, predicted),
+                   'Precision': precision, 'Recall': recall, 'F1': f1}
+        matrix = confusion_matrix(y_test, predicted, labels=np.arange(len(encoder.classes_)))
+        labels = [str(c) for c in encoder.classes_]
+    else:
+        output['Actual'] = y_test.to_numpy()
+        output['Predicted'] = predicted
+        output['Residual'] = output['Actual'] - output['Predicted']
+        metrics = {'MAE': mean_absolute_error(y_test, predicted),
+                   'RMSE': np.sqrt(mean_squared_error(y_test, predicted)),
+                   'R²': r2_score(y_test, predicted) if len(y_test) >= 2 else float('nan')}
+        matrix, labels = None, None
+    return {'predictions': output.reset_index(drop=True), 'metrics': metrics,
+            'matrix': matrix, 'labels': labels, 'task': task, 'algorithm': algorithm,
+            'train_size': len(X_train), 'test_size': len(X_test)}

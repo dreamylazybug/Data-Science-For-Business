@@ -1,74 +1,98 @@
-"""Analyti-Cult: Streamlit data exploration and modeling."""
+"""Analyti-Cult: general-purpose exploratory analysis and prediction studio."""
 from pathlib import Path
 import pandas as pd
 import streamlit as st
-import Explore, Prep_Data, Correlations, Regression, Forest, XGBoost, Cluster, Custplots
-from Download import to_excel
+import Explore, Prep_Data, Correlations, Cluster, Custplots
+from ModelUtils import suggest_task, fit_supervised
+from PredictionStudio import render
 
-st.set_page_config(page_title='Analyti-Cult', layout='wide')
+st.set_page_config(page_title='Analyti-Cult', page_icon='📊', layout='wide')
 st.title('Analyti-Cult')
-st.write('1. Load data → 2. Clean (optional) → 3. Explore → 4. Train models')
-st.markdown('Free datasets: [Kaggle](https://www.kaggle.com/datasets)')
+st.caption('Explore any tabular dataset · Visualize trends · Prepare data · Train and evaluate models')
+st.markdown('Find practice datasets on [Kaggle](https://www.kaggle.com/datasets).')
 
-uploaded = st.sidebar.file_uploader('Choose a CSV data file', type=['csv'])
+uploaded = st.sidebar.file_uploader('Upload CSV dataset', type=['csv'])
 try:
     if uploaded is not None:
         df = pd.read_csv(uploaded)
-        st.caption(f'Uploaded dataset: {uploaded.name}')
+        dataset_name = uploaded.name
     else:
-        path = Path(__file__).resolve().parent / 'HR Employee Attrition.csv'
-        df = pd.read_csv(path)
-        st.caption('Default dataset: HR Employee Attrition')
-except (OSError, pd.errors.ParserError, UnicodeError) as exc:
-    st.error(f'Unable to load CSV: {exc}')
+        df = pd.read_csv(Path(__file__).resolve().parent / 'HR Employee Attrition.csv')
+        dataset_name = 'HR Employee Attrition (example)'
+except (OSError, UnicodeError, pd.errors.ParserError, ValueError) as exc:
+    st.error(f'Could not load dataset: {exc}')
     st.stop()
-if df.empty or len(df.columns) == 0:
-    st.error('The dataset is empty.'); st.stop()
-if df.columns.duplicated().any():
-    st.error('Duplicate column names detected; rename them in the CSV.'); st.stop()
+if df.empty or not df.columns.is_unique:
+    st.error('Dataset is empty or has duplicate column names. Please upload a valid CSV.')
+    st.stop()
 
-st.sidebar.header('Explore and prepare')
-if st.sidebar.button('Explore Data'):
+st.caption(f'Loaded: **{dataset_name}**')
+col1, col2, col3 = st.columns(3)
+col1.metric('Rows', f'{len(df):,}')
+col2.metric('Columns', f'{len(df.columns):,}')
+col3.metric('Missing cells', f'{int(df.isna().sum().sum()):,}')
+
+explore_tab, prepare_tab, charts_tab, model_tab, cluster_tab = st.tabs([
+    'Explore', 'Prepare', 'Visualize', 'Prediction Studio', 'Clustering'])
+with explore_tab:
     Explore.Load_Data(df)
-if st.sidebar.button('Clean and Prepare Data'):
-    cleaned = Prep_Data.Prepare_Data(df)
-    st.download_button('Download prepared CSV', cleaned.to_csv(index=False).encode('utf-8'), 'Prepared_Data.csv', 'text/csv')
-plttype = st.sidebar.selectbox('Select plot type', ['None','Scatter','Linear Regression','Distribution','Box Plot for Categorical Data'])
-if plttype != 'None':
-    Custplots.cstplt(df, plttype)
-if st.sidebar.button('Correlations within data'):
-    Correlations.corell(df)
-
-st.sidebar.header('Predictive modeling (classification)')
-st.sidebar.caption('Choose a categorical target. Models train on the original data; preprocessing is fitted on training rows only.')
-target = st.sidebar.selectbox('Target variable', df.columns, index=df.columns.get_loc('Attrition') if 'Attrition' in df else 0)
-features = st.sidebar.multiselect('Predictor variables', [c for c in df.columns if c != target])
-testsz = st.sidebar.slider('Test set fraction', 0.2, 0.7, 0.3, 0.05)
-lr = st.sidebar.slider('XGBoost learning rate', 0.05, 0.3, 0.1, 0.05)
-maxdepth = st.sidebar.slider('Tree maximum depth', 2, 10, 5)
-model_choice = st.sidebar.selectbox('Model', ['Logistic Regression','Random Forest','XGBoost'])
-if st.sidebar.button('Train selected model'):
-    if not features:
-        st.warning('Select at least one predictor.')
-    elif df[target].nunique(dropna=True) > min(30, max(2, len(df)//5)):
-        st.warning('This looks like a continuous or high-cardinality target. These are classification models; choose a categorical target.')
-    else:
+with prepare_tab:
+    st.caption('This optional export is for exploration. Models preprocess raw predictors separately after train/test splitting.')
+    if st.button('Prepare dataset for download'):
         try:
-            with st.spinner('Training model...'):
-                if model_choice == 'Logistic Regression':
-                    result = Regression.regres(df[features], df[target], testsz)
-                elif model_choice == 'Random Forest':
-                    result = Forest.forest(df[features], df[target], testsz, lr, maxdepth)
-                else:
-                    result = XGBoost.xgboost(df[features], df[target], testsz, lr, maxdepth)
-            st.dataframe(result.head(100), use_container_width=True)
-            st.download_button('Download model predictions (Excel)', to_excel(result), f'{model_choice.replace(" ", "_")}_predictions.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            cleaned = Prep_Data.Prepare_Data(df)
+            st.download_button('Download prepared CSV', cleaned.to_csv(index=False).encode('utf-8'),
+                               'prepared_data.csv', 'text/csv')
         except (ValueError, TypeError) as exc:
+            st.error(f'Preparation failed: {exc}')
+with charts_tab:
+    plot_type = st.selectbox('Chart type', ['Distribution', 'Scatter', 'Linear Regression', 'Box Plot for Categorical Data', 'Correlations'])
+    if plot_type == 'Correlations':
+        Correlations.corell(df)
+    else:
+        Custplots.cstplt(df, plot_type)
+with model_tab:
+    st.subheader('Configure a model')
+    st.caption('Select a target and predictors. Classification predicts categories; regression predicts numeric values.')
+    target = st.selectbox('Target column', df.columns.tolist(), index=df.columns.get_loc('Attrition') if 'Attrition' in df else 0)
+    available = [c for c in df.columns if c != target]
+    selected = st.multiselect('Predictor columns', available, default=[])
+    recommendation = suggest_task(df[target])
+    task = st.radio('Prediction task', ['Classification', 'Regression'], index=0 if recommendation == 'Classification' else 1,
+                    horizontal=True, help='Automatically suggested based on target type; you can override.')
+    if task == 'Classification':
+        algorithm = st.selectbox('Algorithm', ['Logistic Regression', 'Random Forest', 'XGBoost'])
+    else:
+        algorithm = st.selectbox('Algorithm', ['Ridge Regression', 'Random Forest', 'XGBoost'])
+    a, b, c = st.columns(3)
+    test_fraction = a.slider('Test fraction', 0.15, 0.4, 0.25, 0.05)
+    depth = b.slider('Maximum tree depth', 2, 12, 5)
+    learning_rate = c.slider('XGBoost learning rate', 0.01, 0.3, 0.1, 0.01)
+    if st.button('Train and evaluate', type='primary'):
+        try:
+            with st.spinner('Training model and evaluating holdout predictions...'):
+                st.session_state['model_result'] = fit_supervised(df, target, selected, task, algorithm,
+                                        test_fraction=test_fraction, max_depth=depth, learning_rate=learning_rate)
+            st.session_state['model_config'] = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate)
+        except (ValueError, TypeError, OverflowError) as exc:
+            st.session_state.pop('model_result', None)
             st.error(f'Model could not run: {exc}')
-
-st.sidebar.header('Clustering')
-cluster_cols = st.sidebar.multiselect('Numeric columns to cluster', df.select_dtypes(include='number').columns.tolist())
-if st.sidebar.button('k-Means'):
-    result = Cluster.cluster(df[cluster_cols])
-    if result is not None:
-        st.download_button('Download clusters (CSV)', result.to_csv(index=False).encode('utf-8'), 'cluster_Data.csv', 'text/csv')
+    current_config = (dataset_name, target, tuple(selected), task, algorithm, test_fraction, depth, learning_rate)
+    if st.session_state.get('model_config') == current_config and 'model_result' in st.session_state:
+        render(st.session_state['model_result'])
+    elif 'model_result' in st.session_state:
+        st.info('Model settings changed. Click Train and evaluate to refresh the results.')
+with cluster_tab:
+    st.caption('Unsupervised clustering uses selected numeric columns; no target column is required.')
+    numeric_cols = df.select_dtypes(include='number').columns.tolist()
+    cluster_features = st.multiselect('Numeric columns', numeric_cols, default=numeric_cols[:min(3,len(numeric_cols))])
+    if cluster_features:
+        try:
+            result = Cluster.cluster(df[cluster_features])
+            if result is not None:
+                st.download_button('Download clusters (CSV)', result.to_csv(index=False).encode('utf-8'),
+                                   'clusters.csv', 'text/csv')
+        except (ValueError, TypeError) as exc:
+            st.error(f'Clustering could not run: {exc}')
+    else:
+        st.info('Select at least one numeric column to cluster.')
