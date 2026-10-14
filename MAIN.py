@@ -3,13 +3,13 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import streamlit as st
-import Explore, Prep_Data, Correlations, Cluster, Custplots
+import Explore, Cluster, PivotStudio, VisualizeStudio
 from ModelUtils import suggest_task, fit_supervised
 from PredictionStudio import render
 
 st.set_page_config(page_title='Analyti-Cult', page_icon='📊', layout='wide')
 st.title('Analyti-Cult')
-st.caption('Explore any tabular dataset · Visualize trends · Prepare data · Train and evaluate models')
+st.caption('Explore any tabular dataset · Clean data · Build pivots · Visualize trends · Train and evaluate models')
 st.markdown('Find practice datasets on [Kaggle](https://www.kaggle.com/datasets).')
 
 # A built-in demonstration dataset is loaded automatically on first visit.
@@ -54,18 +54,29 @@ else:
         st.stop()
 
 # Keep a cleaned working copy only for the current dataset.
-source_key = (dataset_name, len(df), tuple(df.columns), int(df.isna().sum().sum()))
+import hashlib
+source_key = hashlib.sha256(pd.util.hash_pandas_object(df, index=True).values.tobytes() + str(tuple(df.columns)).encode()).hexdigest()
 if st.session_state.get('clean_source_key') != source_key:
     st.session_state['clean_source_key'] = source_key
     st.session_state.pop('cleaned_dataset', None)
     st.session_state.pop('model_result', None)
     st.session_state.pop('model_config', None)
+    st.session_state.pop('pivot_result', None)
+    st.session_state.pop('pivot_signature', None)
+    st.session_state.pop('viz_requested_source', None)
+    for key in list(st.session_state):
+        if key.startswith(('viz_', 'pivot_')):
+            st.session_state.pop(key, None)
 
 st.sidebar.divider()
 use_cleaned = st.sidebar.checkbox('Use cleaned data in analysis',
     value=False, disabled='cleaned_dataset' not in st.session_state,
     help='Applies the cleaned copy to Explore, Visualize, Prediction Studio and Clustering.')
 raw_df = df
+if st.session_state.get('pivot_cleaned_setting') != use_cleaned:
+    st.session_state.pop('pivot_result', None)
+    st.session_state.pop('pivot_signature', None)
+    st.session_state['pivot_cleaned_setting'] = use_cleaned
 if use_cleaned and 'cleaned_dataset' in st.session_state:
     df = st.session_state['cleaned_dataset'].copy()
 
@@ -75,8 +86,8 @@ col1.metric('Rows', f'{len(df):,}')
 col2.metric('Columns', f'{len(df.columns):,}')
 col3.metric('Missing cells', f'{int(df.isna().sum().sum()):,}')
 
-explore_tab, clean_tab, prepare_tab, charts_tab, model_tab, cluster_tab = st.tabs([
-    'Explore', 'Clean Data', 'Prepare', 'Visualize', 'Prediction Studio', 'Clustering'])
+explore_tab, clean_tab, pivot_tab, charts_tab, model_tab, cluster_tab = st.tabs([
+    'Explore', 'Clean Data', 'Pivot Studio', 'Visualize', 'Prediction Studio', 'Clustering'])
 with explore_tab:
     Explore.Load_Data(df)
 with clean_tab:
@@ -129,21 +140,11 @@ with clean_tab:
         st.download_button('Download cleaned CSV', cleaned.to_csv(index=False).encode('utf-8'),
                            file_name='cleaned_data.csv', mime='text/csv')
 
-with prepare_tab:
-    st.caption('This optional export is for exploration. Models preprocess raw predictors separately after train/test splitting.')
-    if st.button('Prepare dataset for download'):
-        try:
-            cleaned = Prep_Data.Prepare_Data(df)
-            st.download_button('Download prepared CSV', cleaned.to_csv(index=False).encode('utf-8'),
-                               'prepared_data.csv', 'text/csv')
-        except (ValueError, TypeError) as exc:
-            st.error(f'Preparation failed: {exc}')
+with pivot_tab:
+    PivotStudio.render(df, source_signature=(source_key, use_cleaned))
 with charts_tab:
-    plot_type = st.selectbox('Chart type', ['Distribution', 'Scatter', 'Linear Regression', 'Box Plot for Categorical Data', 'Correlations'])
-    if plot_type == 'Correlations':
-        Correlations.corell(df)
-    else:
-        Custplots.cstplt(df, plot_type)
+    VisualizeStudio.render(raw_df, st.session_state.get('cleaned_dataset'),
+        st.session_state.get('pivot_result'), st.session_state.get('pivot_signature'))
 with model_tab:
     st.subheader('Configure a model')
     st.caption('Select a target and predictors. Classification predicts categories; regression predicts numeric values.')
