@@ -40,7 +40,7 @@ def Prepare_Data(df):
     
 
     # Convert all categorical variables to string
-    dtg = dtg.applymap(str)
+    dtg = dtg.astype(str)
 
     # Transform Categorical variables
     from sklearn import preprocessing
