@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import streamlit as st
-import Explore, Cluster, PivotStudio, VisualizeStudio
+import Explore, Cluster, PivotStudio, VisualizeStudio, VerbatimIntelligence, BusinessAnalystAgent
 from ModelUtils import suggest_task, fit_supervised
 from PredictionStudio import render
 
@@ -64,6 +64,8 @@ if st.session_state.get('clean_source_key') != source_key:
     st.session_state.pop('pivot_result', None)
     st.session_state.pop('pivot_signature', None)
     st.session_state.pop('viz_requested_source', None)
+    for key in ('verbatim_result', 'verbatim_config', 'verbatim_latest_result', 'ba_report'):
+        st.session_state.pop(key, None)
     for key in list(st.session_state):
         if key.startswith(('viz_', 'pivot_')):
             st.session_state.pop(key, None)
@@ -86,8 +88,8 @@ col1.metric('Rows', f'{len(df):,}')
 col2.metric('Columns', f'{len(df.columns):,}')
 col3.metric('Missing cells', f'{int(df.isna().sum().sum()):,}')
 
-explore_tab, clean_tab, pivot_tab, charts_tab, model_tab, cluster_tab = st.tabs([
-    'Explore', 'Clean Data', 'Pivot Studio', 'Visualize', 'Prediction Studio', 'Clustering'])
+explore_tab, clean_tab, pivot_tab, charts_tab, model_tab, cluster_tab, verbatim_tab, agent_tab = st.tabs([
+    'Explore', 'Clean Data', 'Pivot Studio', 'Visualize', 'Prediction Studio', 'Clustering', 'Verbatim Intelligence', 'Business Analyst Agent'])
 with explore_tab:
     Explore.Load_Data(df)
 with clean_tab:
@@ -192,3 +194,8 @@ with cluster_tab:
             st.error(f'Clustering could not run: {exc}')
     else:
         st.info('Select at least one numeric column to cluster.')
+
+with verbatim_tab:
+    VerbatimIntelligence.render(df, source_key=(source_key, use_cleaned))
+with agent_tab:
+    BusinessAnalystAgent.render(df, dataset_name, source_key=(source_key, use_cleaned))
