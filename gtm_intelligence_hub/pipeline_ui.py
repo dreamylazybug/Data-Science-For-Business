@@ -6,6 +6,7 @@ from signal_quality import company_match, deduplicate, filter_icp, freshness_day
 from local_llm import analyze_local
 from prospect_discovery import TOPICS, fetch_topic
 from entity_resolution import registry_from_frame, resolve
+from icp_scoring import fit
 
 def render():
     st.subheader("AI Pipeline Generation | Signal-to-opportunity discovery")
@@ -32,6 +33,17 @@ def render():
             st.caption(f"Registry loaded: {len(registry)} entities. Matches are user-supplied, not independently verified.")
         except Exception as exc:
             st.error(f"Registry error: {exc}")
+    with st.expander("Ideal customer profile (ICP) criteria"):
+        industry=st.text_input("Target industries (comma-separated)",value="")
+        segment=st.text_input("Target segments (comma-separated)",value="")
+        country=st.text_input("Target countries (comma-separated)",value="")
+        technology=st.text_input("Target technologies (comma-separated)",value="")
+        employee_range=st.checkbox("Filter by employee count")
+        min_employees=st.number_input("Minimum employees",min_value=0,value=100,disabled=not employee_range)
+        max_employees=st.number_input("Maximum employees",min_value=0,value=5000,disabled=not employee_range)
+    profile={"industry":industry,"segment":segment,"country":country,"technologies":technology,
+             "min_employees":int(min_employees) if employee_range else None,
+             "max_employees":int(max_employees) if employee_range else None}
     if mode=="Synthetic demonstration":
         signals=demo_signals()
         st.info("All synthetic companies and events are fictional demonstrations.")
@@ -78,11 +90,12 @@ def render():
         entity_result=resolutions[signal_index]
         if require_match and entity_result["status"]!="Registry match — unverified":
             continue
+        icp_fit=fit(entity_result["entity"],profile) if entity_result["entity"] else {"score":None,"coverage":0,"details":[]}
         flags=quality_flags(signal)
         if not signal.get("demo") and not signal.get("discovery") and not include_uncertain and "Company name not confirmed in headline" in flags:
             continue
         for match in assess_signal(signal,{p:PRODUCTS[p] for p in products}):
-            rows.append({**signal,**match,"flags":flags,"age_days":freshness_days(signal.get("published","")),"resolution":entity_result})
+            rows.append({**signal,**match,"flags":flags,"age_days":freshness_days(signal.get("published","")),"resolution":entity_result,"icp_fit":icp_fit})
     if mode=="Discover new prospects (opt-in)" and signals and not rows:
         st.warning("Candidates were discovered, but none met the product relevance rules. Review the candidate table above or select additional product areas.")
     if not rows:
@@ -91,7 +104,7 @@ def render():
     a,b=st.columns(2)
     a.metric("Opportunity hypotheses",len(rows))
     b.metric("Distinct signals",len({(r["company"],r["title"]) for r in rows}))
-    st.dataframe(pd.DataFrame([{"Company":r["company"],"Headline":r["title"],"Product":r["product"],"Relevance heuristic":r["relevance"],"Age (days)":r["age_days"],"Quality flags":", ".join(r["flags"])} for r in rows]),use_container_width=True,hide_index=True)
+    st.dataframe(pd.DataFrame([{"Company":r["company"],"Headline":r["title"],"Product":r["product"],"Relevance heuristic":r["relevance"],"ICP fit":r["icp_fit"]["score"],"ICP evidence coverage":r["icp_fit"]["coverage"],"Age (days)":r["age_days"],"Quality flags":", ".join(r["flags"])} for r in rows]),use_container_width=True,hide_index=True)
     with st.expander("Optional local AI interpretation"):
         st.caption("Uses a locally running Ollama model. Sends headline and summary to localhost only, when requested. Model output is unverified interpretation.")
         use_llm=st.checkbox("Enable local LLM interpretation")
@@ -107,6 +120,10 @@ def render():
             st.write("**Entity resolution:**",row["resolution"]["status"]," — ",row["resolution"]["method"])
             if row["resolution"]["status"]=="Ambiguous":
                 st.warning("Multiple registry entities match this name. No automatic assignment.")
+            st.write("**ICP fit:**",row["icp_fit"]["score"] if row["icp_fit"]["score"] is not None else "Unknown",
+                     " | **Evaluated weight:**",row["icp_fit"]["coverage"],"/ 100")
+            if row["icp_fit"]["details"]:
+                st.dataframe(pd.DataFrame(row["icp_fit"]["details"],columns=["Criterion","Result"]),hide_index=True)
             st.write("**Quality flags:**",", ".join(row["flags"]) or "None detected")
             st.write("**Matched terms:**",", ".join(row["evidence_terms"]))
             st.write("**Rule-based hypothesis:**",row["hypothesis"])
