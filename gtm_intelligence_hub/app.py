@@ -10,9 +10,9 @@ MODULES = [
     "Renewal Intelligence", "Revenue Forecasting", "Seller Intelligence",
 ]
 st.sidebar.title("Analyti-Cult")
-st.sidebar.caption("AI-first GTM Intelligence Hub · v0.1")
+st.sidebar.caption("AI-first GTM Intelligence Hub · v0.2")
 module = st.sidebar.radio("Explore", MODULES)
-st.sidebar.info("Demo mode: synthetic examples. No live CRM or external intelligence feeds.")
+st.sidebar.info("Synthetic data by default. Pipeline Generation supports opt-in live news headline research.")
 st.title(module)
 st.caption("Illustrative synthetic data only — no production AI predictions.")
 
@@ -44,12 +44,8 @@ if module == "GTM Command Center":
     st.info("Northstar Labs shows elevated renewal risk; Summit Systems has a large deal with lower win propensity. Investigate both before acting.")
     st.plotly_chart(px.bar(accounts, x="Account", y="Pipeline", color="Segment", title="Pipeline by account"), use_container_width=True)
 elif module == "Pipeline Generation":
-    st.subheader("External signal discovery — prototype")
-    st.warning("Live external signal ingestion and evidence verification are not yet connected.")
-    st.dataframe(pd.DataFrame([
-        {"Account":"Acme Cloud","Illustrative signal":"New cloud region announced","Opportunity hypothesis":"Cloud security expansion","Status":"Unverified demo"},
-        {"Account":"Vertex Data","Illustrative signal":"Hiring for data platform roles","Opportunity hypothesis":"Data protection evaluation","Status":"Unverified demo"},
-    ]), use_container_width=True)
+    from pipeline_ui import render
+    render()
 elif module == "Pipeline Conversion":
     st.plotly_chart(px.scatter(accounts, x="Win probability", y="Pipeline", size="Pipeline", hover_name="Account", title="Opportunity risk overview"), use_container_width=True)
     st.dataframe(accounts[["Account","Pipeline","Win probability"]], use_container_width=True)
