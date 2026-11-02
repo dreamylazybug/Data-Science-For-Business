@@ -89,3 +89,16 @@ Run tests:
 ```bash
 python -m unittest discover -s gtm_intelligence_hub/tests -v
 ```
+
+## Continuous integration (v0.7)
+
+GitHub Actions workflow: `.github/workflows/gtm-ci.yml`. Runs on commits to `gtm-intelligence-hub` and supports manual dispatch. It installs requirements, checks Python syntax, runs offline unit tests, and executes Streamlit AppTest smoke tests for the Command Center and Pipeline Generation demo mode.
+
+Check the **Actions** tab for the latest result. CI does not validate external news availability, Ollama connectivity, or production deployment. Passing CI is a prerequisite for further release testing, not a production certification.
+
+Local equivalent:
+```bash
+python -m pip install -r gtm_intelligence_hub/requirements.txt
+python -m compileall -q gtm_intelligence_hub
+python -m unittest discover -s gtm_intelligence_hub/tests -v
+```
