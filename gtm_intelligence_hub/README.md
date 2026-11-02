@@ -72,3 +72,20 @@ Run tests:
 ```bash
 python -m unittest discover -s gtm_intelligence_hub/tests -v
 ```
+
+## Firmographic ICP fit (v0.6)
+
+Upload a company registry with `company` and optional `industry`, `segment`, `country`, `technologies` (pipe-separated), and `employees`. Define target ICP attributes in the **Ideal customer profile (ICP) criteria** expander.
+
+The system scores exact attribute overlaps with weights: industry 30, segment 20, country 20, technologies 20, employee count 10. Only available, configured attributes enter the denominator. A 100% fit with 30/100 evidence coverage is therefore **not** equivalent to a 100% fit with complete evidence. Unknown fields are shown separately. Scores are descriptive heuristics, not buying probabilities. No external firmographic data vendor is connected.
+
+Example CSV:
+```csv
+company,domain,aliases,industry,segment,country,technologies,employees
+Acme Cloud Inc,acme.example,Acme Cloud|Acme,Software,Commercial,US,Azure|Python,500
+```
+
+Run tests:
+```bash
+python -m unittest discover -s gtm_intelligence_hub/tests -v
+```
