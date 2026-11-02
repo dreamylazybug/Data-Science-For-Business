@@ -4,11 +4,12 @@ import streamlit as st
 from pipeline_engine import PRODUCTS, assess_signal, demo_signals, fetch_news
 from signal_quality import company_match, deduplicate, filter_icp, freshness_days, quality_flags
 from local_llm import analyze_local
+from prospect_discovery import TOPICS, fetch_topic
 
 def render():
     st.subheader("AI Pipeline Generation | Signal-to-opportunity discovery")
     st.caption("Live source research + transparent relevance rules + optional local Ollama reasoning.")
-    mode=st.radio("Signal source",["Synthetic demonstration","Live news headlines (opt-in)"],horizontal=True)
+    mode=st.radio("Signal source",["Synthetic demonstration","Live news headlines (opt-in)","Discover new prospects (opt-in)"],horizontal=True)
     icp=st.file_uploader("Optional ICP account list (CSV with company column)",type=["csv"],key="pipeline_icp")
     allowed=[]
     if icp is not None:
@@ -25,6 +26,20 @@ def render():
     if mode=="Synthetic demonstration":
         signals=demo_signals()
         st.info("All synthetic companies and events are fictional demonstrations.")
+    elif mode=="Discover new prospects (opt-in)":
+        topic=st.selectbox("Market event to scan",list(TOPICS))
+        st.caption("Searches public headlines for candidate company names. Extraction is conservative and does not establish corporate identity.")
+        if st.button("Scan market for prospects",type="primary"):
+            try:
+                with st.spinner("Scanning public news..."):
+                    st.session_state["prospect_signals"]=fetch_topic(topic)
+                    st.session_state["prospect_topic"]=topic
+            except Exception as exc:
+                st.error(f"Prospect scan failed: {exc}")
+        signals=st.session_state.get("prospect_signals",[]) if st.session_state.get("prospect_topic")==topic else []
+        if signals:
+            st.info(f"Found {len(set(s['company'] for s in signals))} unverified company candidates. Validate company identities before sales use.")
+            st.dataframe(pd.DataFrame([{"Candidate":s["company"],"Headline":s["title"],"Source":s["source"],"Published":s["published"]} for s in signals]),use_container_width=True,hide_index=True)
     else:
         company=st.text_input("Company to research",placeholder="Enter a company name")
         st.caption("Google News RSS is queried only when Discover is clicked. Headline matches do not verify company identity.")
@@ -42,10 +57,12 @@ def render():
     rows=[]
     for signal in signals:
         flags=quality_flags(signal)
-        if not signal.get("demo") and not include_uncertain and "Company name not confirmed in headline" in flags:
+        if not signal.get("demo") and not signal.get("discovery") and not include_uncertain and "Company name not confirmed in headline" in flags:
             continue
         for match in assess_signal(signal,{p:PRODUCTS[p] for p in products}):
             rows.append({**signal,**match,"flags":flags,"age_days":freshness_days(signal.get("published",""))})
+    if mode=="Discover new prospects (opt-in)" and signals and not rows:
+        st.warning("Candidates were discovered, but none met the product relevance rules. Review the candidate table above or select additional product areas.")
     if not rows:
         st.info("No matching hypotheses. Try another company, widen product areas, or inspect unconfirmed matches.")
         return
@@ -63,6 +80,8 @@ def render():
             st.write("**Source:**",row["source"]," | **Published:**",row["published"] or "Unknown")
             if row["url"]:
                 st.link_button("Read source headline",row["url"])
+            if row.get("discovery"):
+                st.warning("Candidate company name extracted from headline; not verified against an entity registry.")
             st.write("**Quality flags:**",", ".join(row["flags"]) or "None detected")
             st.write("**Matched terms:**",", ".join(row["evidence_terms"]))
             st.write("**Rule-based hypothesis:**",row["hypothesis"])
