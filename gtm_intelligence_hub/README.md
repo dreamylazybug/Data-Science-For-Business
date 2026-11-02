@@ -41,3 +41,14 @@ python -m unittest discover -s gtm_intelligence_hub/tests -v
 ## Next milestones
 
 Introduce full entity resolution and source provenance, customizable product catalog, multi-source intelligence, stronger LLM output validation, and end-to-end CI tests.
+
+## New prospect discovery (v0.4)
+
+Open **Pipeline Generation → Discover new prospects (opt-in)**, select a market event, then click **Scan market for prospects**. The module queries a Google News RSS search and extracts candidate organization names only from headlines following a conservative `Company announces/raises/expands/...` pattern. It lists candidates even when no product match is found; qualifying candidates also flow into product relevance hypotheses.
+
+This is **candidate extraction**, not verified entity resolution or comprehensive prospect discovery. The pattern misses many legitimate headlines and can misidentify publishers, product names, and other named entities. Results must be validated against authoritative company information before sales action. Live access requires outbound network connectivity and the feed's continued availability.
+
+Run tests:
+```bash
+python -m unittest discover -s gtm_intelligence_hub/tests -v
+```
