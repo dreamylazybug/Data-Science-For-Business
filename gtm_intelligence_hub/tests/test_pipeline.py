@@ -11,6 +11,8 @@ class TestPipeline(unittest.TestCase):
         matches=[assess_signal(x) for x in demo_signals()]
         self.assertTrue(any(matches))
         self.assertTrue(all(0<=m["relevance"]<=100 for group in matches for m in group))
+    def test_empty_catalog(self):
+        self.assertEqual(assess_signal(demo_signals()[0], {}), [])
     def test_company_boundaries(self):
         self.assertTrue(company_match("Acme Cloud Inc.","Acme Cloud announces expansion"))
         self.assertFalse(company_match("Acme Cloud","Another company expands"))
