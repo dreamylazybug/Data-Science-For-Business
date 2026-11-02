@@ -12,27 +12,29 @@ def render():
     st.subheader("AI Pipeline Generation | Signal-to-opportunity discovery")
     st.caption("Live source research + transparent relevance rules + optional local Ollama reasoning.")
     mode=st.radio("Signal source",["Synthetic demonstration","Live news headlines (opt-in)","Discover new prospects (opt-in)"],horizontal=True)
-    icp=st.file_uploader("Optional ICP account list (CSV with company column)",type=["csv"],key="pipeline_icp")
-    allowed=[]
-    if icp is not None:
-        try:
-            data=pd.read_csv(icp)
-            col=next((c for c in data.columns if c.lower().strip() in {"company","account","account_name"}),None)
-            if col is None:
-                st.warning("ICP CSV needs a company, account, or account_name column.")
-            else:
-                allowed=data[col].dropna().astype(str).tolist()
-                st.caption(f"ICP filter active: {len(allowed)} named companies")
-        except Exception as exc:
-            st.error(f"Invalid ICP CSV: {exc}")
-    registry_upload=st.file_uploader("Optional company registry CSV (company, domain, aliases, industry, segment)",type=["csv"],key="company_registry")
-    registry=[]
-    if registry_upload is not None:
-        try:
-            registry=registry_from_frame(pd.read_csv(registry_upload))
-            st.caption(f"Registry loaded: {len(registry)} entities. Matches are user-supplied, not independently verified.")
-        except Exception as exc:
-            st.error(f"Registry error: {exc}")
+    with st.expander("Advanced · Data sources and CSV uploads", expanded=False):
+        st.caption("Optional. Use uploaded account lists and company registries to refine discovery.")
+        icp=st.file_uploader("Optional ICP account list (CSV with company column)",type=["csv"],key="pipeline_icp")
+        allowed=[]
+        if icp is not None:
+            try:
+                data=pd.read_csv(icp)
+                col=next((c for c in data.columns if c.lower().strip() in {"company","account","account_name"}),None)
+                if col is None:
+                    st.warning("ICP CSV needs a company, account, or account_name column.")
+                else:
+                    allowed=data[col].dropna().astype(str).tolist()
+                    st.caption(f"ICP filter active: {len(allowed)} named companies")
+            except Exception as exc:
+                st.error(f"Invalid ICP CSV: {exc}")
+        registry_upload=st.file_uploader("Optional company registry CSV (company, domain, aliases, industry, segment)",type=["csv"],key="company_registry")
+        registry=[]
+        if registry_upload is not None:
+            try:
+                registry=registry_from_frame(pd.read_csv(registry_upload))
+                st.caption(f"Registry loaded: {len(registry)} entities. Matches are user-supplied, not independently verified.")
+            except Exception as exc:
+                st.error(f"Registry error: {exc}")
     with st.expander("Ideal customer profile (ICP) criteria"):
         industry=st.text_input("Target industries (comma-separated)",value="")
         segment=st.text_input("Target segments (comma-separated)",value="")
