@@ -23,7 +23,8 @@ accounts = pd.DataFrame([
     {"Account":"Summit Systems","Segment":"Enterprise","Pipeline":620000,"Win probability":0.38,"Renewal risk":0.55,"Expansion potential":200000},
     {"Account":"Blue Harbor","Segment":"SMB","Pipeline":95000,"Win probability":0.73,"Renewal risk":0.31,"Expansion potential":30000},
 ])
-uploaded = st.sidebar.file_uploader("Optional account CSV", type=["csv"])
+with st.sidebar.expander("Advanced · Data uploads", expanded=False):
+    uploaded = st.file_uploader("Optional account CSV", type=["csv"])
 if uploaded:
     try:
         incoming = pd.read_csv(uploaded)
