@@ -52,3 +52,23 @@ Run tests:
 ```bash
 python -m unittest discover -s gtm_intelligence_hub/tests -v
 ```
+
+## Entity resolution v1 (v0.5)
+
+Upload an optional **company registry CSV** in Pipeline Generation. Required column: `company`. Optional: `domain`, `aliases` (pipe-separated names), `industry`, `segment`.
+
+Example:
+```csv
+company,domain,aliases,industry,segment
+Acme Cloud Inc,acme.example,Acme Cloud|Acme,Software,Commercial
+Northstar Labs,northstar.example,Northstar,Healthcare,Enterprise
+```
+
+Exact normalized names and aliases are compared against the candidate names extracted from headlines. Duplicate matches are marked **Ambiguous**, not silently selected. The optional **Require unambiguous registry match for opportunities** toggle excludes ambiguous and unresolved names from product hypotheses. Uploaded domains can be used by the resolver when independently supplied as a hint; news URLs are **not** treated as corporate domains.
+
+This is local matching against user-supplied data, not independent entity verification. Company registries must be curated; parent/subsidiary structures, ticker/LEI validation, and authoritative third-party enrichment remain future work.
+
+Run tests:
+```bash
+python -m unittest discover -s gtm_intelligence_hub/tests -v
+```
