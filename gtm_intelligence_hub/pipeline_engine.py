@@ -49,7 +49,7 @@ def fetch_news(company, limit=10, timeout=8):
     return result
 def assess_signal(signal, product_catalog=None):
     """Transparent rule-based relevance, NOT calibrated propensity or a factual assertion."""
-    catalog=product_catalog or PRODUCTS
+    catalog=PRODUCTS if product_catalog is None else product_catalog
     text=(signal["title"]+" "+signal.get("summary","")).lower()
     event_types=[name for name, terms in EVENTS.items() if any(term in text for term in terms)]
     matches=[]
