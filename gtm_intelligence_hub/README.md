@@ -1,31 +1,43 @@
-# Analyti-Cult GTM Intelligence Hub v0.2
+# Analyti-Cult GTM Intelligence Hub v0.3
 
-An isolated Streamlit GTM intelligence prototype. The existing general-purpose Analyti-Cult application on `master` is unchanged.
+Streamlit GTM intelligence research prototype, developed in a dedicated branch. Existing `master` remains unchanged.
 
-## Run
+## Start the application
 
 ```bash
 pip install -r gtm_intelligence_hub/requirements.txt
 streamlit run gtm_intelligence_hub/app.py
 ```
 
-## Pipeline Generation v1
+## Pipeline Generation v2
 
-Open **Pipeline Generation** in the sidebar. Choose between fictional synthetic signals or opt-in Google News RSS headlines. For live mode, enter a company name and click **Discover external signals**. Select product areas, inspect linked source headlines, and review suggested opportunity hypotheses.
+Select **Pipeline Generation**. Choose fictional demonstration signals or opt-in live Google News RSS headline retrieval. Enter a company name and click **Discover external signals** to fetch live headlines.
 
-The signal discovery engine:
-- Retrieves publicly available RSS headlines only on explicit user action.
-- Matches reported events to configurable product areas using transparent keyword rules.
-- Displays source, headline, relevance heuristic, opportunity hypothesis, and validation steps.
-- Requires human validation; it does not write to CRM or initiate outreach.
+Capabilities:
+- Transparent product relevance heuristics for cloud, identity, data, and network security.
+- Conservative headline company-name checks, duplicate removal, publication-age indicators, and quality flags.
+- Optional ICP CSV upload with a `company`, `account`, or `account_name` column. Exact normalized account matching is used.
+- Optional **local Ollama** interpretation. Install Ollama separately, pull a compatible model (e.g. `ollama pull llama3.2`), and start its local service. In the UI enable local LLM interpretation and click **Analyze with local LLM** for an individual signal.
+- Model JSON is checked for an allowed product/event and a verbatim evidence substring. This is limited validation, not independent factual verification.
+- Human review indicators only. No CRM updates or outreach.
 
-**Limitations:** News headlines are not independently verified. Entity disambiguation, robust date parsing, source deduplication, ICP filtering, trained propensity scores, customer-specific product catalogs, and LLM inference are not implemented. Relevance scores are heuristic rankings, **not** probabilities. Other GTM modules remain synthetic demonstrations.
+## Test
 
-## Next engineering milestones
+```bash
+python -m unittest discover -s gtm_intelligence_hub/tests -v
+```
 
-1. Add a company registry and robust entity matching to reduce false positives.
-2. Implement source deduplication, date normalization, and signal freshness.
-3. Support uploaded ICP and product catalog mappings.
-4. Add optional local LLM extraction with structured evidence and strict citation validation.
-5. Train and calibrate outcome-based ranking only after sufficient labeled data exists.
-6. Add automated tests and CI.
+## Limitations and security
+
+- Live RSS headlines are unverified, can be irrelevant, and may be incomplete. News is fetched only on user request. The app does not fetch full articles.
+- Local LLM calls are restricted to localhost:11434 and are opt-in; ensure Ollama is running locally. No external hosted LLM is used.
+- Source text is untrusted. The prompt tells the model not to follow instructions in news content, but model outputs still require human review.
+- Product catalog is code-configured, not yet editable from the UI. ICP CSV filters named accounts but is not a full firmographic ICP engine.
+- Scores are heuristic relevance indicators, not calibrated probabilities or verified buying intent.
+- Company matching is conservative string matching, not a validated corporate-entity registry. Deduplication is basic.
+- Tests are committed but have not been executed in CI. The Streamlit app has not been verified end-to-end in this session.
+- Other GTM modules remain synthetic demonstrations.
+
+## Next milestones
+
+Introduce full entity resolution and source provenance, customizable product catalog, multi-source intelligence, stronger LLM output validation, and end-to-end CI tests.
