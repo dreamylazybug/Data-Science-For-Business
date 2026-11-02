@@ -20,7 +20,10 @@ def prepare_registry(records):
         aliases=[a.strip() for a in str(row.get("aliases","") or "").split("|") if a.strip() and a.strip().lower()!="nan"]
         result.append({"id":idx,"company":company,"domain":_domain(row.get("domain","")),
                        "aliases":aliases,"industry":str(row.get("industry","") or ""),
-                       "segment":str(row.get("segment","") or "")})
+                       "segment":str(row.get("segment","") or ""),
+                       "country":str(row.get("country","") or ""),
+                       "technologies":str(row.get("technologies","") or ""),
+                       "employees":str(row.get("employees","") or "")})
     return result
 
 def resolve(candidate, registry, domain_hint=""):
@@ -55,5 +58,5 @@ def registry_from_frame(frame):
     selected=[]
     for _,row in frame.iterrows():
         selected.append({k:("" if k not in cols or row[cols[k]]!=row[cols[k]] else str(row[cols[k]]))
-                         for k in ("company","domain","aliases","industry","segment")})
+                         for k in ("company","domain","aliases","industry","segment","country","technologies","employees")})
     return prepare_registry(selected)
