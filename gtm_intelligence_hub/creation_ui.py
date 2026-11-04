@@ -3,7 +3,8 @@ from datetime import date
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from creation_pulse import demo_events, pulse, quarter_start, separate_horizons
+from creation_pulse import pulse
+from sfdc_mock import generate, creation_events, conversion_summary
 
 def dollars(value):
     return f"$"+f"{value/1_000_000:,.2f}M"
@@ -15,7 +16,8 @@ def render():
                           min_value=date(2026,1,1), max_value=date(2026,12,31))
     target_m = st.number_input("Quarterly gross creation target ($M)", min_value=1.0,
                                value=35.0, step=1.0)
-    events = demo_events(as_of)
+    rows = generate(as_of=as_of)
+    events = creation_events(rows)
     result = pulse(events, as_of, target_m*1_000_000)
     a,b,c,d = st.columns(4)
     a.metric("Created QTD",dollars(result["qtd"]),
@@ -38,6 +40,19 @@ def render():
                           xaxis_title="Selling day in quarter",yaxis_title="Pipeline created ($M)",
                           legend_title_text="")
         st.plotly_chart(fig,use_container_width=True)
+    with st.expander("Demo dataset · Salesforce-style opportunity line items", expanded=False):
+        st.caption("Generated automatically: three years of fictional CRM records, 3–4 opportunities per week, SKU-level line items. No upload required.")
+        st.metric("Unique opportunities",len({r["Opportunity code"] for r in rows}))
+        st.metric("SKU line items",len(rows))
+        st.dataframe(pd.DataFrame(rows).head(25),use_container_width=True,hide_index=True)
+        st.download_button("Download synthetic SFDC CSV",
+                           pd.DataFrame(rows).to_csv(index=False).encode("utf-8"),
+                           file_name="synthetic_sfdc_opportunity_line_items.csv",
+                           mime="text/csv")
+        rates = conversion_summary(rows)
+        st.dataframe(pd.DataFrame([{"Product":p,**v} for p,v in sorted(rates.items())]),
+                     use_container_width=True,hide_index=True)
+        st.caption("Closed-win rates exclude open opportunities; line items are not counted as separate opportunities.")
     st.subheader("Creation composition")
     tab1,tab2,tab3=st.tabs(["Product","Segment","Sales motion"])
     for tab,group in [(tab1,"by_product"),(tab2,"by_segment"),(tab3,"by_motion")]:
