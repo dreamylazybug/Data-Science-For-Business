@@ -102,3 +102,13 @@ python -m pip install -r gtm_intelligence_hub/requirements.txt
 python -m compileall -q gtm_intelligence_hub
 python -m unittest discover -s gtm_intelligence_hub/tests -v
 ```
+
+## Creation Intelligence — Phase 1: Creation Pulse
+
+Open **Creation Intelligence** in the app sidebar. This phase uses deterministic fictional opportunity-creation events (no CRM connection) and shows QTD gross creation, aligned prior-year creation, linear pace against a configurable quarterly creation target, a simple run-rate quarter-end estimate, and breakdowns by product, segment and sales motion.
+
+**Definitions:** Created pipeline is measured at the opportunity's initial creation amount. Subsequent value changes are not counted as new creation. Prior-year comparisons align the number of elapsed weekdays rather than calendar dates; holidays and fiscal calendars are not yet supported. The quarter-end estimate is a simple weekday run-rate extrapolation, not a trained forecast. Target is a *gross pipeline creation* target, not a bookings target.
+
+**Separate models:** Current-quarter bookings sufficiency and future-quarter pipeline health have separate documented input contracts and are not yet implemented. No conversion rate, win probability or confidence interval is fabricated.
+
+Tests: `python -m unittest discover -s gtm_intelligence_hub/tests -v`.
