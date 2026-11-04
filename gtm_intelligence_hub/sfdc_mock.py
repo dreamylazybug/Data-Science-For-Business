@@ -20,7 +20,8 @@ FIELDS = ["Opportunity code","Name","Account Name","Account Code","product_level
           "primary reason lost","incumbent competitor","winning competitor","sales_level_1",
           "sales_level_2","sales_territory","TCV","Upsell TCV","Renew TCV","NetNew TCV",
           "opportunity term","opportunity created date","opportunity closed date",
-          "line item","line item start date","line item end date","line item term"]
+          "line item","line item start date","line item end date","line item term",
+          "seller_id","seller_name","specialist_id","specialist_name"]
 
 def generate(as_of=date(2026,11,4), years=3, seed=20261104):
     """One record per SKU line item; financial values are line-level, not repeated totals.
@@ -28,6 +29,8 @@ def generate(as_of=date(2026,11,4), years=3, seed=20261104):
     An opportunity may have multiple lines. Product-level win propensity varies
     between 24% and 37%; realized conversion also depends on open opportunities.
     """
+    from buyer_seller_mock import people
+    sellers, specialists = people()
     rng = random.Random(seed)
     start = date(as_of.year-years,as_of.month,as_of.day)
     monday = start-timedelta(days=start.weekday())
@@ -68,7 +71,10 @@ def generate(as_of=date(2026,11,4), years=3, seed=20261104):
                 "Solution Validation":"Best Case","Proposal":"Best Case","Negotiation":"Commit"}[stage]
             pov_status = rng.choice(["Not required","Not started","In progress","Completed"])
             pov_health = "N/A" if pov_status=="Not required" else rng.choice(["Green","Amber","Red"])
-            specialist = rng.choice(["","Solution Architect","Product Specialist","Security Specialist"])
+            seller_pool=[s for s in sellers if s["sales_territory"]==region and s["sales_level_2"].endswith(segment)]
+            seller=rng.choice(seller_pool)
+            specialist_person=rng.choice([None]+[s for s in specialists if s["sales_territory"]==region])
+            specialist=specialist_person["role"] if specialist_person else ""
             opp_id = f"OPP-{n:06d}"
             # One to three SKU lines per opportunity; unique line IDs prevent double counting.
             count = rng.choices([1,2,3],weights=[65,27,8])[0]
@@ -98,7 +104,10 @@ def generate(as_of=date(2026,11,4), years=3, seed=20261104):
                     value if motion=="Renew" else 0,
                     value if motion=="NetNew" else 0,
                     term,created.isoformat(),close.isoformat() if is_closed else "",
-                    f"{opp_id}-LI-{li+1:02d}",line_start.isoformat(),line_end.isoformat(),term
+                    f"{opp_id}-LI-{li+1:02d}",line_start.isoformat(),line_end.isoformat(),term,
+                    seller["seller_id"],seller["seller_name"],
+                    specialist_person["specialist_id"] if specialist_person else "",
+                    specialist_person["specialist_name"] if specialist_person else ""
                 ])))
             opportunities.append((opp_id,stage,level1))
         week += timedelta(days=7)
