@@ -112,3 +112,11 @@ Open **Creation Intelligence** in the app sidebar. This phase uses deterministic
 **Separate models:** Current-quarter bookings sufficiency and future-quarter pipeline health have separate documented input contracts and are not yet implemented. No conversion rate, win probability or confidence interval is fabricated.
 
 Tests: `python -m unittest discover -s gtm_intelligence_hub/tests -v`.
+
+## Salesforce-style synthetic data
+
+Creation Intelligence automatically uses `sfdc_mock.generate(as_of=...)`: a deterministic, fictional three-year rolling history with roughly 3–4 new opportunities each week. Records have all 38 requested fields, including opportunity and account codes, product hierarchy, SKU, route to market, forecast category, stage, specialist and POV details, discounts, segment/industry, competitors, sales hierarchy, TCV motion components and line-item dates. One row represents one SKU line item; `Opportunity code` identifies the opportunity, so dashboards must roll up line-item TCV and count unique opportunities. The demo defines NetNew/Upsell/Renew at product_level2; a real deployment needs configurable product-grain entitlement logic and historical snapshots.
+
+Product-specific *generating probabilities* span 24–37%, with observed closed-only win rates varying due to random sampling. Open deals are excluded from the closed-win denominator. This is **not** an estimate from real Salesforce data. Opportunity creation values are held fixed in the generator. Opportunity stage and close outcomes are simulated as of the selected date, not reconstructed from historical snapshots. The default generator is deterministic for a given as-of date; changing the date regenerates the rolling history rather than querying a frozen historical database. Do not use it for backtesting or validated forecasts.
+
+In Creation Intelligence, expand **Demo dataset · Salesforce-style opportunity line items** to inspect or download the CSV. No upload is required.
