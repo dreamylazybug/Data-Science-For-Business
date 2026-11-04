@@ -75,6 +75,7 @@ def generate(as_of=date(2026,11,4), years=3, seed=20261104):
             seller=rng.choice(seller_pool)
             specialist_person=rng.choice([None]+[s for s in specialists if s["sales_territory"]==region])
             specialist=specialist_person["role"] if specialist_person else ""
+            sales_l1=seller["sales_level_1"]
             opp_id = f"OPP-{n:06d}"
             # One to three SKU lines per opportunity; unique line IDs prevent double counting.
             count = rng.choices([1,2,3],weights=[65,27,8])[0]
