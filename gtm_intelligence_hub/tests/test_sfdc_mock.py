@@ -13,7 +13,7 @@ class TestSfdcMock(unittest.TestCase):
         cls.rows=generate(date(2026,11,4))
     def test_schema(self):
         self.assertEqual(set(self.rows[0]),set(FIELDS))
-        self.assertEqual(len(FIELDS),38)
+        self.assertEqual(len(FIELDS),42)
     def test_three_years_and_weekly_volume(self):
         ids={r["Opportunity code"] for r in self.rows}
         self.assertGreater(len(ids),450)
