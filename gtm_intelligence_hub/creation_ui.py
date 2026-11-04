@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from creation_pulse import pulse
 from sfdc_mock import generate, creation_events, conversion_summary
+from buyer_seller_mock import people, buyer_profiles, buyer_relationships, engagement_events, performance
 
 def dollars(value):
     return f"$"+f"{value/1_000_000:,.2f}M"
@@ -17,6 +18,11 @@ def render():
     target_m = st.number_input("Quarterly gross creation target ($M)", min_value=1.0,
                                value=35.0, step=1.0)
     rows = generate(as_of=as_of)
+    sellers,specialists=people()
+    contacts=buyer_profiles(rows)
+    relationships=buyer_relationships(contacts)
+    engagements=engagement_events(rows,contacts,as_of)
+    seller_performance=performance(rows,sellers)
     events = creation_events(rows)
     result = pulse(events, as_of, target_m*1_000_000)
     a,b,c,d = st.columns(4)
@@ -53,6 +59,20 @@ def render():
         st.dataframe(pd.DataFrame([{"Product":p,**v} for p,v in sorted(rates.items())]),
                      use_container_width=True,hide_index=True)
         st.caption("Closed-win rates exclude open opportunities; line items are not counted as separate opportunities.")
+    with st.expander("Buyer and seller intelligence · Synthetic supporting datasets", expanded=False):
+        st.caption("Account contacts, relationship links, engagement events, named sellers and specialists. All records are fictional.")
+        views = {
+            "Buyer contacts":contacts,"Buyer relationships":relationships,
+            "Buyer engagements":engagements,"Sellers":sellers,"Specialists":specialists,
+            "Seller product performance":seller_performance,
+        }
+        chosen=st.selectbox("Inspect dataset",list(views),key="buyer_seller_dataset")
+        frame=pd.DataFrame(views[chosen])
+        st.metric("Records",len(frame))
+        st.dataframe(frame.head(100),use_container_width=True,hide_index=True)
+        st.download_button("Download selected CSV",frame.to_csv(index=False).encode("utf-8"),
+                           file_name=chosen.lower().replace(" ","_")+".csv",mime="text/csv")
+        st.caption("Relationship strength and sentiment are simulated, not inferred from emails or actual interactions. Seller performance uses closed opportunities only.")
     st.subheader("Creation composition")
     tab1,tab2,tab3=st.tabs(["Product","Segment","Sales motion"])
     for tab,group in [(tab1,"by_product"),(tab2,"by_segment"),(tab3,"by_motion")]:
