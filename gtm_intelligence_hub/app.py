@@ -5,12 +5,12 @@ import plotly.express as px
 
 st.set_page_config(page_title="Analyti-Cult | GTM Intelligence Hub", layout="wide", page_icon="📈")
 MODULES = [
-    "GTM Command Center", "Pipeline Generation", "Pipeline Conversion",
+    "GTM Command Center", "Creation Intelligence", "Pipeline Generation", "Pipeline Conversion",
     "Win/Loss Intelligence", "Pricing Intelligence", "Customer Expansion",
     "Renewal Intelligence", "Revenue Forecasting", "Seller Intelligence",
 ]
 st.sidebar.title("Analyti-Cult")
-st.sidebar.caption("AI-first GTM Intelligence Hub · v0.2")
+st.sidebar.caption("AI-first GTM Intelligence Hub · v0.8")
 module = st.sidebar.radio("Explore", MODULES)
 st.sidebar.info("Synthetic data by default. Pipeline Generation supports opt-in live news headline research.")
 st.title(module)
@@ -44,6 +44,9 @@ if module == "GTM Command Center":
     st.subheader("Illustrative AI briefing")
     st.info("Northstar Labs shows elevated renewal risk; Summit Systems has a large deal with lower win propensity. Investigate both before acting.")
     st.plotly_chart(px.bar(accounts, x="Account", y="Pipeline", color="Segment", title="Pipeline by account"), use_container_width=True)
+elif module == "Creation Intelligence":
+    from creation_ui import render
+    render()
 elif module == "Pipeline Generation":
     from pipeline_ui import render
     render()
