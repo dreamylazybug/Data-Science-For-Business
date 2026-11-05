@@ -6,6 +6,7 @@ import streamlit as st
 from creation_pulse import pulse
 from sfdc_mock import generate, creation_events, conversion_summary
 from buyer_seller_mock import people, buyer_profiles, buyer_relationships, engagement_events, performance
+from creation_intelligence import horizon_models, inspect
 
 def dollars(value):
     return f"$"+f"{value/1_000_000:,.2f}M"
@@ -84,13 +85,47 @@ def render():
                          use_container_width=True,hide_index=True,
                          column_config={"Created amount":st.column_config.NumberColumn(format="$%.0f"),
                                         "Share of QTD":st.column_config.ProgressColumn(min_value=0,max_value=1,format="%.1f")})
-    st.subheader("Separate sufficiency horizons")
+    st.subheader("Conversion-adjusted sufficiency · Two horizons")
+    st.caption("Illustrative estimates from historical closed-opportunity win rates and assumed time-to-close distributions. Not validated forecasts.")
     left,right=st.columns(2)
     with left:
-        st.markdown("**Current-quarter bookings sufficiency**")
-        st.info("Model not yet calibrated. Requires open pipeline snapshots, stage history, expected close dates and cohort conversion.")
+        current_target=st.number_input("Current-quarter bookings target ($M)",min_value=0.1,value=12.0,step=1.0)
     with right:
-        st.markdown("**Future-quarter pipeline health**")
-        st.info("Model not yet calibrated. Requires creation cohorts, historical win/loss and time-to-close distributions.")
-    st.caption("Creation target and pacing are not bookings forecasts. Values and opportunities are fictional; "
-               "amount changes after creation are excluded. No live CRM or external enrichment is used.")
+        future_target=st.number_input("Future bookings target per quarter ($M)",min_value=0.1,value=12.0,step=1.0)
+    horizons=horizon_models(rows,as_of,current_target*1e6,future_target*1e6)
+    current=horizons["current"]
+    a,b,c=st.columns(3)
+    a.metric("Booked this quarter",dollars(current["booked_qtd"]))
+    b.metric("Expected from open pipeline",dollars(current["expected_open"]))
+    c.metric("Current-quarter gap",dollars(current["gap"]))
+    future=horizons["future"]
+    st.bar_chart(pd.DataFrame({"Quarter":["Next Q","Q+2","Q+3"],
+                              "Expected bookings ($M)":[v/1e6 for v in future["expected_by_quarter"]],
+                              "Target ($M)":[future_target]*3}).set_index("Quarter"))
+    st.caption(horizons["method"])
+    st.subheader("Created-this-quarter opportunity inspection")
+    inspected=inspect(rows,contacts,engagements,sellers,seller_performance,as_of)
+    st.metric("Opportunities inspected",len(inspected))
+    if inspected:
+        st.dataframe(pd.DataFrame([{"Opportunity":o["opportunity_code"],"Account":o["account"],
+            "Product":o["product"],"TCV":o["tcv"],"Seller":o["seller"],
+            "Buyer engagements":o["engagements"],"Decision makers":o["decision_maker_contacts"],
+            "Quality flags":len(o["gaps"])} for o in inspected]),
+            use_container_width=True,hide_index=True)
+        selected=st.selectbox("Inspect opportunity",options=[o["opportunity_code"] for o in inspected])
+        detail=next(o for o in inspected if o["opportunity_code"]==selected)
+        a,b,c=st.columns(3)
+        a.metric("Engaged contacts",detail["engaged_contacts"])
+        b.metric("Decision makers engaged",detail["decision_maker_contacts"])
+        c.metric("Discount",f'{detail["discount"]:.1f}%')
+        st.write("**Seller:**",detail["seller"]," · **Specialist:**",detail["specialist"] or "Unassigned")
+        st.write("**Competitor:**",detail["competitor"])
+        st.write("**Relevant seller precedent:**",detail["precedent_opportunity"] or "No matching won deal",
+                 detail["precedent_seller"] or "")
+        st.write("**Inspection findings**")
+        for finding in detail["gaps"]: st.warning(finding)
+        st.write("**Recommended next actions**")
+        for action in detail["actions"]: st.write("•",action)
+        st.caption(detail["evidence_note"])
+    st.caption("All companies, buyers and sellers are fictional. Opportunity inspections use transparent demo rules; "
+               "next-best-product fit, collateral availability and true engagement strength need additional evidence.")
